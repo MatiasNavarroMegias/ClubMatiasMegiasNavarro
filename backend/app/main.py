@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 
-
 # Esta instancia representa la aplicacion web principal.
 # FastAPI utiliza esta configuracion para registrar las rutas
 # y generar automaticamente la documentacion OpenAPI.
