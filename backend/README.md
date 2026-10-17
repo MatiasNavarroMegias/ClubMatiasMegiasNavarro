@@ -53,3 +53,62 @@ python -m pytest
 ruff check .
 ruff format --check .
 ```
+
+## Ejecutar la API en desarrollo
+
+Con el entorno virtual activo y desde la carpeta `backend`:
+
+```powershell
+python -m uvicorn app.main:app --reload
+```
+
+La API queda disponible en:
+
+```text
+http://127.0.0.1:8000
+```
+
+La opcion `--reload` reinicia automaticamente el servidor cuando se modifica el codigo. Esta opcion se utiliza solamente durante el desarrollo.
+
+## Verificar el estado de la API
+
+El endpoint de salud permite comprobar que el servidor se encuentra disponible:
+
+```text
+GET http://127.0.0.1:8000/health
+```
+
+Respuesta esperada:
+
+```json
+{
+  "status": "ok",
+  "service": "ClubMatiasMegiasNavarro API"
+}
+```
+
+Este endpoint no consulta PostgreSQL. Su objetivo es comprobar solamente que FastAPI puede recibir solicitudes y devolver respuestas HTTP.
+
+## Documentacion de la API
+
+FastAPI genera automaticamente documentacion interactiva mediante OpenAPI.
+
+Swagger UI:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+ReDoc:
+
+```text
+http://127.0.0.1:8000/redoc
+```
+
+## Detener la API
+
+En la terminal donde se esta ejecutando Uvicorn:
+
+```text
+Ctrl + C
+```
