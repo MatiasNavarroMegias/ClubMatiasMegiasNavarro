@@ -16,6 +16,9 @@ htmlcov/
 .venv/
 venv/
 
+# Python package metadata
+*.egg-info/
+
 # Flutter and Dart
 .dart_tool/
 .flutter-plugins
