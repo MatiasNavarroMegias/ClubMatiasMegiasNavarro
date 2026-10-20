@@ -121,3 +121,293 @@ q
 ```
 
 Este comando finaliza la sesion de depuracion.
+
+## Integracion con la API de sedes
+
+La aplicacion movil se comunica con FastAPI mediante solicitudes HTTP.
+
+El flujo de comunicacion es:
+
+```text
+Flutter
+→ VenueApiClient
+→ FastAPI
+→ VenueService
+→ VenueRepository
+→ PostgreSQL
+```
+
+Flutter no se conecta directamente con PostgreSQL.
+
+## Dependencia HTTP
+
+El proyecto utiliza el paquete:
+
+```yaml
+http: ^1.6.0
+```
+
+Esta dependencia permite ejecutar solicitudes HTTP y utilizar clientes simulados durante las pruebas.
+
+## Configuracion de la API
+
+La direccion base se encuentra centralizada en:
+
+```text
+lib/core/config/api_config.dart
+```
+
+El valor predeterminado es:
+
+```text
+http://10.0.2.2:8000
+```
+
+El emulador Android utiliza `10.0.2.2` para acceder al servidor local de la computadora.
+
+En Windows, FastAPI sigue disponible mediante:
+
+```text
+http://127.0.0.1:8000
+```
+
+## Reemplazar la direccion de la API
+
+La direccion puede modificarse sin cambiar el codigo fuente:
+
+```powershell
+flutter run --dart-define=API_BASE_URL=https://api.example.com
+```
+
+La configuracion utiliza:
+
+```dart
+String.fromEnvironment
+```
+
+Esto permite utilizar direcciones diferentes en desarrollo, pruebas y produccion.
+
+## Modelo movil de sede
+
+El modelo se encuentra en:
+
+```text
+lib/features/venues/data/models/venue.dart
+```
+
+La clase `Venue` representa la respuesta enviada por FastAPI.
+
+Contiene:
+
+```text
+id
+name
+address
+openingTime
+closingTime
+isActive
+createdAt
+updatedAt
+```
+
+### `Venue.fromJson`
+
+Convierte una respuesta JSON de FastAPI en un objeto Dart.
+
+Los nombres recibidos desde la API utilizan `snake_case`:
+
+```json
+{
+  "opening_time": "08:00:00",
+  "closing_time": "23:00:00",
+  "is_active": true
+}
+```
+
+El modelo Dart utiliza `camelCase`:
+
+```text
+openingTime
+closingTime
+isActive
+```
+
+### `toCreateJson`
+
+Genera el cuerpo necesario para crear una sede.
+
+No incluye:
+
+```text
+id
+isActive
+createdAt
+updatedAt
+```
+
+Estos valores son administrados por FastAPI y PostgreSQL.
+
+### `copyWith`
+
+Genera una nueva instancia modificando solamente los valores indicados.
+
+Esta operacion permite mantener objetos inmutables durante las actualizaciones de la interfaz.
+
+## Cliente HTTP de sedes
+
+El cliente se encuentra en:
+
+```text
+lib/features/venues/data/services/venue_api_client.dart
+```
+
+La clase `VenueApiClient` implementa:
+
+```text
+getVenues
+getVenue
+createVenue
+updateVenue
+```
+
+### `getVenues`
+
+Ejecuta:
+
+```http
+GET /venues
+```
+
+Devuelve:
+
+```dart
+Future<List<Venue>>
+```
+
+### `getVenue`
+
+Ejecuta:
+
+```http
+GET /venues/{venue_id}
+```
+
+Devuelve una sede mediante su identificador.
+
+### `createVenue`
+
+Ejecuta:
+
+```http
+POST /venues
+```
+
+Envia nombre, direccion y horarios.
+
+### `updateVenue`
+
+Ejecuta:
+
+```http
+PATCH /venues/{venue_id}
+```
+
+Envia solamente los cambios recibidos.
+
+Ejemplo:
+
+```dart
+{
+  'name': 'Sede Ramos Mejia Centro',
+}
+```
+
+## Manejo de errores
+
+Los errores se representan mediante:
+
+```dart
+VenueApiException
+```
+
+La excepcion contiene:
+
+```text
+message
+statusCode
+```
+
+Ejemplos:
+
+```text
+400 → la solicitud no contiene cambios
+404 → la sede no existe
+422 → los datos o los horarios son invalidos
+null → no se pudo establecer una conexion
+```
+
+Cuando FastAPI devuelve un campo `detail`, el cliente conserva ese mensaje para que la interfaz pueda mostrarlo.
+
+## Pruebas automatizadas
+
+Las pruebas del modelo se encuentran en:
+
+```text
+test/features/venues/data/models/venue_test.dart
+```
+
+Verifican:
+
+- Conversion desde JSON.
+- Conversion de fechas.
+- Generacion del JSON de creacion.
+- Funcionamiento de `copyWith`.
+- Inmutabilidad del objeto original.
+
+Las pruebas del cliente se encuentran en:
+
+```text
+test/features/venues/data/services/venue_api_client_test.dart
+```
+
+Utilizan `MockClient` para verificar:
+
+- Metodos HTTP.
+- Direcciones solicitadas.
+- Encabezados.
+- Cuerpos JSON.
+- Respuestas exitosas.
+- Errores HTTP.
+- JSON con estructura invalida.
+- Fallos de conexion.
+
+Las pruebas no necesitan iniciar FastAPI ni utilizar PostgreSQL.
+
+## Ejecutar las verificaciones
+
+Desde la carpeta `mobile`:
+
+```powershell
+dart format lib test
+flutter analyze
+flutter test
+```
+
+Resultado actual esperado:
+
+```text
+13 pruebas aprobadas
+```
+
+## Proxima integracion
+
+El cliente sera utilizado por las pantallas de sedes para:
+
+```text
+Consultar sedes
+→ mostrar el listado
+→ seleccionar una sede
+→ editar sus datos
+→ guardar mediante PATCH
+→ actualizar la interfaz
+```
