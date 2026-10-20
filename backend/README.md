@@ -325,3 +325,143 @@ El archivo `app/core/database.py` contiene:
 - La dependencia que entrega y cierra sesiones.
 
 Las tablas no se crean manualmente desde este archivo. La estructura de PostgreSQL se administrara mediante modelos de SQLAlchemy y migraciones de Alembic.
+
+## Migraciones de base de datos
+
+El backend utiliza Alembic para versionar los cambios estructurales realizados sobre PostgreSQL.
+
+Una migracion permite registrar operaciones como:
+
+- Crear una tabla.
+- Agregar o eliminar una columna.
+- Modificar un tipo de dato.
+- Crear indices.
+- Agregar restricciones.
+- Crear claves foraneas.
+
+Los cambios de estructura no deben realizarse manualmente en PostgreSQL. Deben representarse mediante modelos de SQLAlchemy y migraciones de Alembic.
+
+## Estructura de Alembic
+
+```text
+backend/
+├── alembic.ini
+└── migrations/
+    ├── env.py
+    ├── README
+    ├── script.py.mako
+    └── versions/
+```
+
+### `alembic.ini`
+
+Contiene la configuracion general de Alembic.
+
+La URL real de PostgreSQL no se guarda en este archivo. Alembic obtiene `DATABASE_URL` desde la configuracion central del backend.
+
+### `migrations/env.py`
+
+Conecta Alembic con:
+
+- La configuracion basada en variables de entorno.
+- PostgreSQL.
+- El motor de SQLAlchemy.
+- Los metadatos de los futuros modelos.
+
+### `migrations/script.py.mako`
+
+Es la plantilla utilizada para generar nuevos archivos de migracion.
+
+### `migrations/versions`
+
+Contiene las migraciones versionadas del proyecto.
+
+La carpeta puede permanecer vacia hasta crear la primera migracion.
+
+## Verificar la configuracion de Alembic
+
+Con el entorno virtual activo y desde la carpeta `backend`:
+
+```powershell
+python -m alembic current
+```
+
+El comando muestra la revision aplicada actualmente en PostgreSQL.
+
+Si todavia no existen migraciones, el comando puede no mostrar un identificador de revision.
+
+## Consultar la revision mas reciente
+
+```powershell
+python -m alembic heads
+```
+
+El comando muestra la ultima revision disponible dentro del proyecto.
+
+## Consultar el historial
+
+```powershell
+python -m alembic history
+```
+
+El comando muestra todas las migraciones en orden.
+
+## Crear una migracion automatica
+
+Cuando existan modelos de SQLAlchemy:
+
+```powershell
+python -m alembic revision --autogenerate -m "descripcion del cambio"
+```
+
+Antes de aplicar una migracion generada automaticamente, se debe revisar su contenido.
+
+Alembic detecta diferencias entre:
+
+- Los modelos definidos mediante SQLAlchemy.
+- La estructura actual de PostgreSQL.
+
+## Aplicar migraciones pendientes
+
+```powershell
+python -m alembic upgrade head
+```
+
+`head` representa la revision mas reciente disponible.
+
+## Revertir la ultima migracion
+
+```powershell
+python -m alembic downgrade -1
+```
+
+Este comando revierte solamente la ultima revision aplicada.
+
+Una migracion no debe revertirse sin revisar primero las operaciones definidas en su funcion `downgrade`.
+
+## Flujo recomendado
+
+```text
+Modificar o crear un modelo SQLAlchemy
+→ Generar una migracion automatica
+→ Revisar las funciones upgrade y downgrade
+→ Ejecutar las pruebas
+→ Aplicar la migracion en PostgreSQL
+→ Verificar la estructura resultante
+→ Registrar los cambios en Git
+```
+
+## Seguridad
+
+Alembic utiliza la misma variable `DATABASE_URL` que el backend.
+
+La contrasena de PostgreSQL permanece dentro de `.env`, que esta excluido del repositorio.
+
+No se deben escribir credenciales dentro de:
+
+- `alembic.ini`
+- `migrations/env.py`
+- Archivos de migracion
+- README
+- Commits
+- Pull Requests
