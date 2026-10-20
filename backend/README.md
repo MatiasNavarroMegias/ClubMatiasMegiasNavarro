@@ -1034,7 +1034,7 @@ service.create_venue(venue_data)
 Una sede nueva se crea activa:
 
 ```python
-is_active=True
+is_active = True
 ```
 
 El identificador y las fechas son administrados por PostgreSQL.
