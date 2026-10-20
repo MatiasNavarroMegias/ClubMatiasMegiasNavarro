@@ -1034,7 +1034,7 @@ service.create_venue(venue_data)
 Una sede nueva se crea activa:
 
 ```python
-is_active=True
+is_active = True
 ```
 
 El identificador y las fechas son administrados por PostgreSQL.
@@ -1190,4 +1190,249 @@ Modelo SQLAlchemy
 
 Endpoint
 → recibe solicitudes y construye respuestas HTTP
+```
+
+## Endpoints de sedes
+
+La API expone operaciones para consultar, crear y modificar parcialmente las sedes.
+
+Las rutas se encuentran en:
+
+```text
+app/api/routes/venues.py
+```
+
+La construccion de las dependencias se encuentra en:
+
+```text
+app/api/dependencies.py
+```
+
+## Arquitectura de las solicitudes
+
+```text
+Solicitud HTTP
+→ Endpoint de FastAPI
+→ VenueService
+→ VenueRepository
+→ SQLAlchemy
+→ PostgreSQL
+```
+
+Los endpoints no construyen consultas SQL ni aplican directamente reglas de negocio.
+
+## `GET /venues`
+
+Devuelve todas las sedes ordenadas alfabeticamente por nombre.
+
+Respuesta exitosa:
+
+```text
+200 OK
+```
+
+Ejemplo:
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Sede Ramos Mejia",
+    "address": "Avenida de Mayo 1000",
+    "opening_time": "08:00:00",
+    "closing_time": "23:00:00",
+    "is_active": true,
+    "created_at": "2026-10-20T12:00:00Z",
+    "updated_at": "2026-10-20T12:00:00Z"
+  }
+]
+```
+
+Si no existen sedes, la API devuelve:
+
+```json
+[]
+```
+
+## `GET /venues/{venue_id}`
+
+Devuelve una sede mediante su identificador.
+
+Respuesta exitosa:
+
+```text
+200 OK
+```
+
+Si la sede no existe:
+
+```text
+404 Not Found
+```
+
+Ejemplo:
+
+```json
+{
+  "detail": "No existe una sede con el identificador 999."
+}
+```
+
+## `POST /venues`
+
+Crea una sede nueva.
+
+Cuerpo de ejemplo:
+
+```json
+{
+  "name": "Sede Ramos Mejia",
+  "address": "Avenida de Mayo 1000",
+  "opening_time": "08:00:00",
+  "closing_time": "23:00:00"
+}
+```
+
+Respuesta exitosa:
+
+```text
+201 Created
+```
+
+El identificador, el estado y las fechas son administrados por el backend y PostgreSQL.
+
+Los datos que no superan las validaciones de Pydantic producen:
+
+```text
+422 Unprocessable Content
+```
+
+## `PATCH /venues/{venue_id}`
+
+Actualiza parcialmente una sede.
+
+Ejemplo de modificacion del nombre:
+
+```json
+{
+  "name": "Sede Ramos Mejia Centro"
+}
+```
+
+Ejemplo de modificacion del estado:
+
+```json
+{
+  "is_active": false
+}
+```
+
+Respuesta exitosa:
+
+```text
+200 OK
+```
+
+Si la sede no existe:
+
+```text
+404 Not Found
+```
+
+Si la solicitud no contiene cambios efectivos:
+
+```text
+400 Bad Request
+```
+
+Si el horario final viola una regla de negocio:
+
+```text
+422 Unprocessable Content
+```
+
+## Traduccion de errores
+
+Los endpoints convierten las excepciones del servicio en respuestas HTTP:
+
+```text
+VenueNotFoundError
+→ 404 Not Found
+
+VenueNoChangesError
+→ 400 Bad Request
+
+InvalidVenueHoursError
+→ 422 Unprocessable Content
+```
+
+El servicio permanece independiente de FastAPI y no utiliza `HTTPException`.
+
+## Inyeccion de dependencias
+
+FastAPI construye las capas necesarias para cada solicitud:
+
+```text
+get_db_session
+→ VenueRepository
+→ VenueService
+```
+
+La funcion responsable es:
+
+```python
+get_venue_service
+```
+
+Esta construccion permite mantener separadas las responsabilidades y reemplazar el servicio durante las pruebas.
+
+## Pruebas de endpoints
+
+Las pruebas se encuentran en:
+
+```text
+tests/test_venue_api.py
+```
+
+Las pruebas utilizan:
+
+```python
+app.dependency_overrides
+```
+
+para reemplazar `VenueService` por un servicio simulado.
+
+Esto permite verificar:
+
+- Parametros de ruta.
+- Cuerpos JSON.
+- Validaciones de Pydantic.
+- Codigos HTTP.
+- Respuestas JSON.
+- Traduccion de excepciones.
+- Construccion de dependencias.
+
+Las pruebas no dependen de PostgreSQL.
+
+## Verificar los endpoints manualmente
+
+Iniciar la API desde la carpeta `backend`:
+
+```powershell
+python -m uvicorn app.main:app --reload
+```
+
+Abrir Swagger:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+La documentacion debe mostrar:
+
+```text
+GET /venues
+GET /venues/{venue_id}
+POST /venues
+PATCH /venues/{venue_id}
 ```
