@@ -112,3 +112,107 @@ En la terminal donde se esta ejecutando Uvicorn:
 ```text
 Ctrl + C
 ```
+
+## Configuracion mediante variables de entorno
+
+El backend utiliza `pydantic-settings` para leer y validar su configuracion.
+
+Durante el desarrollo local, los valores se obtienen desde:
+
+```text
+backend/.env
+```
+
+El archivo `.env` contiene informacion especifica del entorno local y puede incluir datos privados, como la contrasena de PostgreSQL. Por este motivo, no debe registrarse en Git.
+
+## Crear el archivo `.env`
+
+Desde la carpeta `backend`:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Luego se deben completar los valores locales dentro de `.env`.
+
+Ejemplo:
+
+```env
+APP_NAME=ClubMatiasMegiasNavarro API
+APP_ENV=development
+APP_DEBUG=true
+DATABASE_URL=postgresql+psycopg://postgres:TU_CONTRASENA@localhost:5432/club_matias_megias_navarro
+```
+
+El texto `TU_CONTRASENA` debe reemplazarse solamente dentro del archivo `.env`.
+
+La contrasena real no debe escribirse en:
+
+- `.env.example`
+- Archivos Python
+- README
+- Commits
+- Pull Requests
+- Capturas publicas
+
+## Variables disponibles
+
+### `APP_NAME`
+
+Define el nombre utilizado para identificar la API.
+
+```env
+APP_NAME=ClubMatiasMegiasNavarro API
+```
+
+### `APP_ENV`
+
+Define el entorno actual de ejecucion.
+
+Valores permitidos:
+
+```text
+development
+testing
+production
+```
+
+### `APP_DEBUG`
+
+Indica si la aplicacion utiliza configuraciones de depuracion.
+
+```env
+APP_DEBUG=true
+```
+
+`pydantic-settings` convierte el texto `true` en el valor booleano `True`.
+
+### `DATABASE_URL`
+
+Define la direccion que utilizara SQLAlchemy para conectarse con PostgreSQL.
+
+```env
+DATABASE_URL=postgresql+psycopg://postgres:TU_CONTRASENA@localhost:5432/club_matias_megias_navarro
+```
+
+## Verificar la configuracion
+
+Con el entorno virtual activo y desde la carpeta `backend`:
+
+```powershell
+python -c "from app.core.config import get_settings; settings = get_settings(); print(settings.app_name, settings.app_env, settings.app_debug)"
+```
+
+Resultado esperado:
+
+```text
+ClubMatiasMegiasNavarro API development True
+```
+
+La URL de la base de datos no se imprime para evitar mostrar accidentalmente la contrasena.
+
+## Archivo `.env.example`
+
+El archivo `.env.example` se registra en Git porque documenta las variables necesarias sin incluir valores privados.
+
+El archivo `.env` se excluye mediante `.gitignore` porque contiene la configuracion real del entorno local.
