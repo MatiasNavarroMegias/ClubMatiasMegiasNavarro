@@ -798,3 +798,165 @@ Esquema Pydantic
 ```
 
 Esta separacion evita mezclar reglas de comunicacion HTTP con la estructura de almacenamiento.
+
+## Repositorio de sedes
+
+El repositorio de sedes centraliza las operaciones directas realizadas mediante SQLAlchemy.
+
+El archivo se encuentra en:
+
+```text
+app/repositories/venue.py
+```
+
+La arquitectura prevista para las sedes es:
+
+```text
+Endpoint HTTP
+→ Servicio con reglas de negocio
+→ Repositorio con operaciones de persistencia
+→ SQLAlchemy
+→ PostgreSQL
+```
+
+Esta separacion evita que los endpoints construyan consultas o administren directamente las transacciones de la base de datos.
+
+## `VenueRepository`
+
+La clase `VenueRepository` recibe una sesion de SQLAlchemy mediante su constructor:
+
+```python
+VenueRepository(database_session)
+```
+
+El repositorio no crea ni cierra la sesion.
+
+El ciclo de vida de la sesion es administrado por `get_db_session`, lo que permite utilizar una sesion independiente en cada solicitud HTTP.
+
+## Operaciones disponibles
+
+### `list_all`
+
+Obtiene todas las sedes y solicita que PostgreSQL las ordene alfabeticamente por nombre.
+
+```python
+repository.list_all()
+```
+
+Resultado esperado:
+
+```text
+list[Venue]
+```
+
+La operacion utiliza una consulta construida mediante `select`.
+
+### `get_by_id`
+
+Busca una sede mediante su clave primaria.
+
+```python
+repository.get_by_id(venue_id)
+```
+
+Resultados posibles:
+
+```text
+Venue
+None
+```
+
+El repositorio devuelve `None` cuando la sede no existe.
+
+El repositorio no genera respuestas HTTP ni decide que codigo de error utilizar. Esa responsabilidad pertenecera posteriormente al servicio y al endpoint.
+
+### `add`
+
+Agrega una sede nueva a PostgreSQL.
+
+La secuencia utilizada es:
+
+```text
+add
+→ commit
+→ refresh
+```
+
+`add` incorpora la nueva instancia a la sesion.
+
+`commit` confirma la transaccion.
+
+`refresh` recupera valores generados por PostgreSQL, como:
+
+- Identificador.
+- Fecha de creacion.
+- Fecha de actualizacion.
+- Valores predeterminados.
+
+### `save`
+
+Confirma las modificaciones realizadas sobre una sede existente.
+
+La secuencia utilizada es:
+
+```text
+commit
+→ refresh
+```
+
+No se ejecuta nuevamente `add` porque la instancia ya pertenece a la sesion que la obtuvo desde PostgreSQL.
+
+## Responsabilidades que no pertenecen al repositorio
+
+El repositorio no debe:
+
+- Construir respuestas HTTP.
+- Generar excepciones de FastAPI.
+- Validar horarios de funcionamiento.
+- Decidir si una sede puede modificarse.
+- Convertir modelos en esquemas de respuesta.
+- Administrar autenticacion o permisos.
+
+Estas responsabilidades pertenecen a otras capas del backend.
+
+## Pruebas del repositorio
+
+Las pruebas se encuentran en:
+
+```text
+tests/test_venue_repository.py
+```
+
+Las pruebas utilizan `MagicMock` para simular una sesion de SQLAlchemy.
+
+Esto permite verificar las interacciones del repositorio sin depender de:
+
+- PostgreSQL iniciado.
+- Credenciales locales.
+- Datos de prueba almacenados.
+- Una conexion real.
+- Limpieza posterior de registros.
+
+Las pruebas comprueban:
+
+- Listado de sedes.
+- Busqueda por identificador.
+- Resultado de una sede inexistente.
+- Creacion y confirmacion de una sede.
+- Recarga de valores generados.
+- Guardado de modificaciones.
+- Ausencia de una llamada innecesaria a `add` durante una actualizacion.
+
+## Diferencia entre repositorio y servicio
+
+```text
+Repositorio
+→ realiza operaciones directas de persistencia
+
+Servicio
+→ aplica reglas de negocio y coordina operaciones
+```
+
+Por ejemplo, el repositorio puede obtener una sede por identificador.
+
+El servicio decidira posteriormente que debe ocurrir si la sede no existe o si los horarios modificados no forman un rango valido.
