@@ -465,3 +465,165 @@ No se deben escribir credenciales dentro de:
 - README
 - Commits
 - Pull Requests
+
+## Modelo de sede
+
+El modelo `Venue` representa una sede deportiva almacenada en PostgreSQL.
+
+La interfaz muestra el termino `Sede`, mientras que el codigo utiliza el nombre tecnico `Venue`.
+
+La tabla fisica se llama:
+
+```text
+venues
+```
+
+## Campos de la sede
+
+### `id`
+
+Identificador interno y clave primaria de la sede.
+
+PostgreSQL genera este valor automaticamente.
+
+### `name`
+
+Nombre visible de la sede.
+
+```text
+Tipo: VARCHAR(100)
+Obligatorio: si
+Indice: ix_venues_name
+```
+
+El indice permite optimizar futuras busquedas por nombre.
+
+### `address`
+
+Direccion fisica de la sede.
+
+```text
+Tipo: VARCHAR(200)
+Obligatorio: si
+```
+
+La direccion admite una longitud mayor que el nombre porque puede contener calle, altura y otra informacion de ubicacion.
+
+### `opening_time`
+
+Hora de apertura habitual de la sede.
+
+```text
+Tipo: TIME
+Obligatorio: si
+```
+
+No incluye una fecha porque representa un horario recurrente.
+
+### `closing_time`
+
+Hora de cierre habitual de la sede.
+
+```text
+Tipo: TIME
+Obligatorio: si
+```
+
+La validacion que exige que el cierre sea posterior a la apertura se incorporara posteriormente en los esquemas y servicios.
+
+### `is_active`
+
+Indica si la sede se encuentra disponible dentro del sistema.
+
+```text
+Tipo: BOOLEAN
+Obligatorio: si
+Valor inicial: true
+```
+
+Una sede puede desactivarse sin eliminar su informacion ni perder futuras relaciones historicas.
+
+### `created_at`
+
+Fecha y hora de creacion del registro.
+
+```text
+Tipo: TIMESTAMP WITH TIME ZONE
+Obligatorio: si
+Valor inicial: now()
+```
+
+### `updated_at`
+
+Fecha y hora de la ultima actualizacion del registro.
+
+```text
+Tipo: TIMESTAMP WITH TIME ZONE
+Obligatorio: si
+Valor inicial: now()
+```
+
+SQLAlchemy actualiza este valor cuando modifica el objeto.
+
+## Archivos relacionados
+
+```text
+app/models/venue.py
+tests/test_venue_model.py
+migrations/versions/7ad3fe3fbc69_create_venues_table.py
+```
+
+### `app/models/venue.py`
+
+Define como se representa y almacena una sede mediante SQLAlchemy.
+
+### `tests/test_venue_model.py`
+
+Verifica:
+
+- El nombre de la tabla.
+- El registro dentro de `Base.metadata`.
+- Las columnas esperadas.
+- Las restricciones de nulabilidad.
+- Las longitudes de los textos.
+- La construccion de objetos `Venue`.
+
+### Migracion inicial
+
+La revision:
+
+```text
+7ad3fe3fbc69
+```
+
+crea la tabla `venues` y el indice `ix_venues_name`.
+
+La funcion `downgrade` elimina primero el indice y luego la tabla.
+
+## Aplicar la migracion
+
+Desde la carpeta `backend`:
+
+```powershell
+python -m alembic upgrade head
+```
+
+## Verificar la revision aplicada
+
+```powershell
+python -m alembic current
+```
+
+Resultado esperado:
+
+```text
+7ad3fe3fbc69 (head)
+```
+
+## Revertir la migracion
+
+```powershell
+python -m alembic downgrade -1
+```
+
+La migracion fue validada aplicando `upgrade`, ejecutando `downgrade` y aplicando nuevamente `upgrade head`.
