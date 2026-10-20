@@ -627,3 +627,174 @@ python -m alembic downgrade -1
 ```
 
 La migracion fue validada aplicando `upgrade`, ejecutando `downgrade` y aplicando nuevamente `upgrade head`.
+
+## Esquemas de validacion de sede
+
+Los esquemas Pydantic controlan los datos que recibe y devuelve la API.
+
+El modelo SQLAlchemy `Venue` define como se almacena una sede en PostgreSQL, mientras que los esquemas definen:
+
+- Que campos puede enviar el cliente.
+- Que campos son obligatorios.
+- Que limites deben respetarse.
+- Que relaciones deben existir entre los valores.
+- Que informacion devuelve la API.
+
+Los esquemas se encuentran en:
+
+```text
+app/schemas/venue.py
+```
+
+## `VenueBase`
+
+Contiene los campos compartidos por los esquemas de sede:
+
+```text
+name
+address
+opening_time
+closing_time
+```
+
+### Reglas del nombre
+
+```text
+Longitud minima: 1 caracter
+Longitud maxima: 100 caracteres
+```
+
+El limite coincide con la columna `name` del modelo SQLAlchemy.
+
+### Reglas de la direccion
+
+```text
+Longitud minima: 1 caracter
+Longitud maxima: 200 caracteres
+```
+
+El limite coincide con la columna `address` del modelo SQLAlchemy.
+
+### Reglas de horarios
+
+El horario de cierre debe ser posterior al horario de apertura:
+
+```text
+closing_time > opening_time
+```
+
+No se permiten:
+
+- Horarios invertidos.
+- Hora de apertura igual a la hora de cierre.
+- Rangos sin duracion.
+
+## `VenueCreate`
+
+Representa los datos necesarios para crear una sede.
+
+Ejemplo:
+
+```json
+{
+  "name": "Sede Ramos Mejia",
+  "address": "Avenida de Mayo 1000",
+  "opening_time": "08:00:00",
+  "closing_time": "23:00:00"
+}
+```
+
+El cliente no envia:
+
+```text
+id
+is_active
+created_at
+updated_at
+```
+
+Esos valores son administrados por el backend y PostgreSQL.
+
+## `VenueUpdate`
+
+Representa una actualizacion parcial de una sede.
+
+Todos sus campos son opcionales porque se utilizara con el metodo HTTP `PATCH`.
+
+Ejemplo de cambio de nombre:
+
+```json
+{
+  "name": "Sede Ramos Mejia Centro"
+}
+```
+
+Ejemplo de cambio de estado:
+
+```json
+{
+  "is_active": false
+}
+```
+
+Si se envian juntos `opening_time` y `closing_time`, el esquema valida inmediatamente su relacion.
+
+Si se envia solamente uno de los horarios, la validacion final se realizara en el servicio despues de combinar el valor recibido con el horario almacenado en PostgreSQL.
+
+## `VenueResponse`
+
+Representa la informacion completa que la API devuelve al cliente.
+
+Ejemplo:
+
+```json
+{
+  "id": 1,
+  "name": "Sede Ramos Mejia",
+  "address": "Avenida de Mayo 1000",
+  "opening_time": "08:00:00",
+  "closing_time": "23:00:00",
+  "is_active": true,
+  "created_at": "2026-10-20T12:00:00Z",
+  "updated_at": "2026-10-20T12:00:00Z"
+}
+```
+
+El esquema utiliza:
+
+```python
+ConfigDict(from_attributes=True)
+```
+
+Esta configuracion permite construir una respuesta directamente desde una instancia SQLAlchemy de `Venue`.
+
+## Pruebas de los esquemas
+
+Las pruebas se encuentran en:
+
+```text
+tests/test_venue_schema.py
+```
+
+Las pruebas verifican:
+
+- Creacion con datos validos.
+- Rechazo de horarios invertidos.
+- Rechazo de horarios iguales.
+- Rechazo de nombres vacios.
+- Rechazo de nombres mayores a 100 caracteres.
+- Actualizaciones parciales.
+- Validacion de horarios enviados juntos.
+- Conversion desde un modelo SQLAlchemy.
+
+## Diferencia entre modelo y esquema
+
+```text
+Modelo SQLAlchemy
+→ representa la tabla y la persistencia en PostgreSQL
+
+Esquema Pydantic
+→ valida la entrada y construye la salida de la API
+```
+
+Esta separacion evita mezclar reglas de comunicacion HTTP con la estructura de almacenamiento.
