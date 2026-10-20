@@ -216,3 +216,112 @@ La URL de la base de datos no se imprime para evitar mostrar accidentalmente la 
 El archivo `.env.example` se registra en Git porque documenta las variables necesarias sin incluir valores privados.
 
 El archivo `.env` se excluye mediante `.gitignore` porque contiene la configuracion real del entorno local.
+
+## Base de datos local
+
+El backend utiliza PostgreSQL como base de datos relacional y SQLAlchemy para administrar las conexiones desde Python.
+
+### Verificar el servicio de PostgreSQL
+
+En Windows:
+
+```powershell
+Get-Service postgresql-x64-18
+```
+
+El servicio debe mostrar el estado:
+
+```text
+Running
+```
+
+Si el servicio esta detenido, debe iniciarse desde una terminal con permisos de administrador:
+
+```powershell
+Start-Service postgresql-x64-18
+```
+
+### Crear la base de datos
+
+Ingresar a PostgreSQL:
+
+```powershell
+psql -h localhost -p 5432 -U postgres -d postgres
+```
+
+Dentro de `psql`, crear la base:
+
+```sql
+CREATE DATABASE club_matias_megias_navarro;
+```
+
+Luego conectarse:
+
+```text
+\c club_matias_megias_navarro
+```
+
+Verificar la base y el usuario actuales:
+
+```sql
+SELECT current_database(), current_user;
+```
+
+Para salir de PostgreSQL:
+
+```text
+\q
+```
+
+### Configurar la conexion
+
+La conexion se define localmente dentro de `backend/.env`:
+
+```env
+DATABASE_URL=postgresql+psycopg://postgres:TU_CONTRASENA@localhost:5432/club_matias_megias_navarro
+```
+
+El texto `TU_CONTRASENA` debe reemplazarse solamente dentro de `.env`.
+
+Si la contrasena contiene caracteres especiales, debe codificarse para que pueda formar parte de una URL.
+
+El archivo `.env` no debe registrarse en Git.
+
+### Verificar la conexion desde SQLAlchemy
+
+Con el entorno virtual activo y desde la carpeta `backend`:
+
+```powershell
+python -c "from sqlalchemy import text; from app.core.database import engine; connection = engine.connect(); print(connection.execute(text('SELECT current_database()')).scalar_one()); connection.close()"
+```
+
+Resultado esperado:
+
+```text
+club_matias_megias_navarro
+```
+
+Verificar el usuario conectado:
+
+```powershell
+python -c "from sqlalchemy import text; from app.core.database import engine; connection = engine.connect(); print(connection.execute(text('SELECT current_user')).scalar_one()); connection.close()"
+```
+
+Resultado esperado:
+
+```text
+postgres
+```
+
+Estas verificaciones solamente consultan informacion de la conexion. No crean tablas ni modifican datos.
+
+## Estructura de conexion
+
+El archivo `app/core/database.py` contiene:
+
+- El motor de SQLAlchemy.
+- La fabrica de sesiones.
+- La clase base para los futuros modelos.
+- La dependencia que entrega y cierra sesiones.
+
+Las tablas no se crean manualmente desde este archivo. La estructura de PostgreSQL se administrara mediante modelos de SQLAlchemy y migraciones de Alembic.
