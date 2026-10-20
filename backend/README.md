@@ -960,3 +960,234 @@ Servicio
 Por ejemplo, el repositorio puede obtener una sede por identificador.
 
 El servicio decidira posteriormente que debe ocurrir si la sede no existe o si los horarios modificados no forman un rango valido.
+
+## Servicio de sedes
+
+El servicio de sedes concentra las reglas de negocio relacionadas con la creacion, consulta y actualizacion de sedes.
+
+El archivo se encuentra en:
+
+```text
+app/services/venue.py
+```
+
+La arquitectura del modulo es:
+
+```text
+Endpoint HTTP
+→ VenueService
+→ VenueRepository
+→ SQLAlchemy
+→ PostgreSQL
+```
+
+## Responsabilidad del servicio
+
+`VenueService` coordina:
+
+- Los esquemas Pydantic.
+- El modelo SQLAlchemy `Venue`.
+- El repositorio de sedes.
+- Las reglas de negocio.
+- Las excepciones propias del dominio.
+
+El servicio no construye respuestas HTTP ni utiliza `HTTPException`.
+
+Esta separacion permite probar las reglas de negocio sin iniciar FastAPI.
+
+## Operaciones disponibles
+
+### `list_venues`
+
+Obtiene todas las sedes disponibles mediante el repositorio.
+
+```python
+service.list_venues()
+```
+
+El orden de las sedes es responsabilidad del repositorio.
+
+### `get_venue`
+
+Busca una sede mediante su identificador.
+
+```python
+service.get_venue(venue_id)
+```
+
+Si la sede no existe, el servicio genera:
+
+```python
+VenueNotFoundError
+```
+
+El futuro endpoint traducira esta excepcion a una respuesta HTTP adecuada.
+
+### `create_venue`
+
+Crea un modelo `Venue` a partir de un esquema `VenueCreate`.
+
+```python
+service.create_venue(venue_data)
+```
+
+Una sede nueva se crea activa:
+
+```python
+is_active=True
+```
+
+El identificador y las fechas son administrados por PostgreSQL.
+
+### `update_venue`
+
+Modifica parcialmente una sede existente.
+
+```python
+service.update_venue(venue_id, venue_data)
+```
+
+La operacion utiliza:
+
+```python
+venue_data.model_dump(exclude_unset=True)
+```
+
+Esta configuracion permite identificar solamente los campos enviados realmente por el cliente.
+
+## Actualizacion parcial con PATCH
+
+Una solicitud puede modificar un unico campo:
+
+```json
+{
+  "name": "Sede Ramos Mejia Centro"
+}
+```
+
+Tambien puede modificar el estado:
+
+```json
+{
+  "is_active": false
+}
+```
+
+Los campos no enviados mantienen sus valores actuales.
+
+## Deteccion de cambios efectivos
+
+El servicio compara los valores recibidos con los valores almacenados.
+
+Si la solicitud no contiene campos, genera:
+
+```python
+VenueNoChangesError
+```
+
+Si los valores recibidos coinciden con los valores actuales, tambien genera:
+
+```python
+VenueNoChangesError
+```
+
+Esta regla evita confirmar transacciones que no producen modificaciones reales.
+
+## Validacion final de horarios
+
+`VenueUpdate` puede recibir solamente uno de los horarios.
+
+Ejemplo:
+
+```json
+{
+  "closing_time": "07:00:00"
+}
+```
+
+El esquema no puede validar completamente este caso porque no conoce el horario de apertura almacenado.
+
+El servicio combina:
+
+```text
+Horario actual de apertura
++ nuevo horario de cierre
+→ horario final
+→ validacion
+```
+
+Si el cierre final no es posterior a la apertura, genera:
+
+```python
+InvalidVenueHoursError
+```
+
+Esta validacion protege las actualizaciones parciales.
+
+## Excepciones del dominio
+
+### `VenueNotFoundError`
+
+Indica que no existe una sede con el identificador recibido.
+
+### `VenueNoChangesError`
+
+Indica que la solicitud no contiene modificaciones efectivas.
+
+### `InvalidVenueHoursError`
+
+Indica que el horario final de la sede no es valido.
+
+Estas excepciones no dependen de FastAPI.
+
+Los futuros endpoints seran responsables de convertirlas en respuestas HTTP.
+
+## Pruebas del servicio
+
+Las pruebas se encuentran en:
+
+```text
+tests/test_venue_service.py
+```
+
+Las pruebas utilizan un repositorio simulado mediante `MagicMock`.
+
+Esto permite verificar las reglas de negocio sin depender de:
+
+- PostgreSQL iniciado.
+- Credenciales locales.
+- Datos almacenados.
+- Consultas SQL.
+- Transacciones reales.
+
+Las pruebas comprueban:
+
+- Listado de sedes.
+- Busqueda de una sede existente.
+- Error por sede inexistente.
+- Creacion de una sede activa.
+- Actualizacion parcial.
+- Solicitud sin campos.
+- Valores iguales a los actuales.
+- Horario parcial invalido.
+- Horario parcial valido.
+- Llamadas correctas al repositorio.
+
+## Diferencia entre las capas
+
+```text
+Esquema Pydantic
+→ valida el formato de entrada y salida
+
+Servicio
+→ aplica reglas de negocio
+
+Repositorio
+→ realiza operaciones de persistencia
+
+Modelo SQLAlchemy
+→ representa la tabla de PostgreSQL
+
+Endpoint
+→ recibe solicitudes y construye respuestas HTTP
+```
