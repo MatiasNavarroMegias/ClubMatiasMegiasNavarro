@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../features/venues/data/services/venue_api_client.dart';
+import '../features/venues/presentation/screens/venue_list_screen.dart';
 import 'theme/app_theme.dart';
 
 /// Widget principal de ClubMatiasMegiasNavarro.
@@ -7,7 +9,13 @@ import 'theme/app_theme.dart';
 /// Este widget centraliza la configuracion global de MaterialApp,
 /// incluyendo el nombre, los temas visuales y la pantalla inicial.
 class ClubApp extends StatelessWidget {
-  const ClubApp({super.key});
+  const ClubApp({super.key, this.venueApiClient});
+
+  /// Cliente opcional utilizado por la pantalla de sedes.
+  ///
+  /// Durante la ejecucion normal se utiliza el cliente real. Las pruebas
+  /// pueden inyectar un cliente simulado para evitar solicitudes reales.
+  final VenueApiClient? venueApiClient;
 
   @override
   Widget build(BuildContext context) {
@@ -25,32 +33,8 @@ class ClubApp extends StatelessWidget {
       // Utiliza automaticamente el tema configurado en el dispositivo.
       themeMode: ThemeMode.system,
 
-      // Pantalla temporal que confirma que la estructura inicial funciona.
-      home: const AppShell(),
-    );
-  }
-}
-
-/// Pantalla inicial temporal de la aplicacion.
-///
-/// Esta pantalla sera reemplazada mas adelante por el flujo de
-/// autenticacion o por la pantalla principal del usuario.
-class AppShell extends StatelessWidget {
-  const AppShell({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('ClubMatiasMegiasNavarro')),
-      body: const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'Configuracion inicial completada',
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ),
+      // Muestra el listado de sedes como flujo inicial de la aplicacion.
+      home: VenueListScreen(apiClient: venueApiClient),
     );
   }
 }
