@@ -1,4 +1,17 @@
+from datetime import UTC, datetime, timedelta
+
+import jwt
+from jwt import InvalidTokenError as PyJWTInvalidTokenError
 from pwdlib import PasswordHash
+
+
+class InvalidAccessTokenError(Exception):
+    """
+    Indica que un token no puede utilizarse para autenticar al usuario.
+
+    La excepcion evita propagar detalles internos de PyJWT hacia las
+    capas de servicio o HTTP.
+    """
 
 
 class PasswordHasher:
@@ -42,8 +55,6 @@ class PasswordHasher:
         """
         Verifica una contrasena contra el hash almacenado.
 
-        Esta operacion se utilizara posteriormente durante el login.
-
         Args:
             password: Contrasena ingresada por el usuario.
             stored_password_hash: Hash recuperado desde PostgreSQL.
@@ -55,3 +66,103 @@ class PasswordHasher:
             password,
             stored_password_hash,
         )
+
+
+class AccessTokenService:
+    """
+    Genera y verifica tokens JWT utilizados para autenticar usuarios.
+
+    Los tokens contienen solamente el identificador del usuario y las
+    fechas necesarias para controlar su emision y vencimiento.
+    """
+
+    def __init__(
+        self,
+        secret_key: str,
+        algorithm: str,
+        expire_minutes: int,
+    ) -> None:
+        """
+        Inicializa el servicio con la configuracion del entorno.
+
+        Args:
+            secret_key: Clave utilizada para firmar y verificar tokens.
+            algorithm: Algoritmo de firma permitido.
+            expire_minutes: Duracion del token de acceso en minutos.
+        """
+        self.secret_key = secret_key
+        self.algorithm = algorithm
+        self.expire_minutes = expire_minutes
+
+    def create_access_token(
+        self,
+        user_id: int,
+        *,
+        issued_at: datetime | None = None,
+    ) -> str:
+        """
+        Crea un token firmado para identificar a un usuario.
+
+        Args:
+            user_id: Identificador del usuario autenticado.
+            issued_at: Fecha de emision opcional para facilitar pruebas.
+
+        Returns:
+            Token JWT firmado.
+
+        El claim sub se almacena como texto porque esa es la
+        representacion estandar esperada para el subject del token.
+        """
+        issued_at = issued_at or datetime.now(UTC)
+        expires_at = issued_at + timedelta(
+            minutes=self.expire_minutes,
+        )
+
+        payload = {
+            "sub": str(user_id),
+            "iat": issued_at,
+            "exp": expires_at,
+        }
+
+        return jwt.encode(
+            payload,
+            self.secret_key,
+            algorithm=self.algorithm,
+        )
+
+    def get_user_id(self, token: str) -> int:
+        """
+        Verifica el token y devuelve el identificador del usuario.
+
+        Args:
+            token: Token recibido mediante Authorization Bearer.
+
+        Returns:
+            Identificador almacenado dentro del claim sub.
+
+        Raises:
+            InvalidAccessTokenError: Cuando la firma, la expiracion o
+                el identificador contenido en el token no son validos.
+        """
+        try:
+            payload = jwt.decode(
+                token,
+                self.secret_key,
+                algorithms=[self.algorithm],
+            )
+
+            subject = payload.get("sub")
+
+            if not isinstance(subject, str):
+                raise InvalidAccessTokenError("El token de acceso no contiene un usuario valido.")
+
+            user_id = int(subject)
+
+            if user_id <= 0:
+                raise InvalidAccessTokenError("El token de acceso no contiene un usuario valido.")
+
+            return user_id
+        except InvalidAccessTokenError:
+            raise
+        except (PyJWTInvalidTokenError, TypeError, ValueError) as error:
+            raise InvalidAccessTokenError("El token de acceso es invalido o ha vencido.") from error
