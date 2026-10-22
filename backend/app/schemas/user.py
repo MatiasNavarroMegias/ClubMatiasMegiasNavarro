@@ -100,6 +100,57 @@ class UserRegister(BaseModel):
         return self
 
 
+class UserLogin(BaseModel):
+    """
+    Representa las credenciales necesarias para iniciar sesion.
+
+    El correo se valida y normaliza antes de consultar PostgreSQL.
+    La contrasena no se modifica porque debe verificarse exactamente
+    como fue ingresada por el usuario.
+    """
+
+    email: EmailStr = Field(
+        examples=["matias@example.com"],
+    )
+
+    password: str = Field(
+        min_length=1,
+        max_length=128,
+        examples=["ClaveSegura123"],
+    )
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> str:
+        """
+        Normaliza el correo antes de buscar la cuenta.
+        """
+        return str(value).strip().lower()
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_whitespace(cls, value: str) -> str:
+        """
+        Rechaza espacios externos sin alterar la contrasena recibida.
+        """
+        if value != value.strip():
+            raise ValueError("La contrasena no puede comenzar ni terminar con espacios.")
+
+        return value
+
+
+class TokenResponse(BaseModel):
+    """
+    Representa el token entregado despues de un login exitoso.
+
+    El tipo bearer indica que Flutter debe enviar el token mediante
+    el encabezado Authorization.
+    """
+
+    access_token: str
+    token_type: str = "bearer"
+
+
 class UserResponse(BaseModel):
     """
     Representa la informacion publica de un usuario.
