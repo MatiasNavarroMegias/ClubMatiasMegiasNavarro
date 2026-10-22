@@ -1,7 +1,7 @@
-from app.core.security import PasswordHasher
+from app.core.security import AccessTokenService, PasswordHasher
 from app.models import User
 from app.repositories import UserRepository
-from app.schemas import UserRegister
+from app.schemas import UserLogin, UserRegister
 
 
 class EmailAlreadyRegisteredError(Exception):
@@ -13,18 +13,37 @@ class EmailAlreadyRegisteredError(Exception):
     """
 
 
+class InvalidCredentialsError(Exception):
+    """
+    Indica que el correo o la contrasena no son correctos.
+
+    Se utiliza el mismo error para ambos casos con el objetivo de no
+    revelar si una direccion de correo se encuentra registrada.
+    """
+
+
+class InactiveUserError(Exception):
+    """
+    Indica que una cuenta existente se encuentra desactivada.
+
+    Una cuenta inactiva conserva sus datos y reservas, pero no puede
+    iniciar una nueva sesion.
+    """
+
+
 class AuthService:
     """
     Aplica las reglas de negocio relacionadas con autenticacion.
 
-    Durante el registro, el servicio comprueba el correo, genera un
-    hash seguro y entrega el usuario al repositorio.
+    El servicio administra la registracion segura y el inicio de sesion
+    sin depender de FastAPI ni de respuestas HTTP.
     """
 
     def __init__(
         self,
         repository: UserRepository,
         password_hasher: PasswordHasher,
+        access_token_service: AccessTokenService | None = None,
     ) -> None:
         """
         Inicializa el servicio con sus dependencias.
@@ -32,10 +51,15 @@ class AuthService:
         Args:
             repository: Repositorio utilizado para consultar y guardar
                 usuarios.
-            password_hasher: Servicio encargado de proteger contrasenas.
+            password_hasher: Servicio encargado de proteger y verificar
+                contrasenas.
+            access_token_service: Servicio opcional encargado de crear
+                tokens JWT. Es obligatorio para iniciar sesion, pero no
+                para ejecutar exclusivamente el flujo de registracion.
         """
         self.repository = repository
         self.password_hasher = password_hasher
+        self.access_token_service = access_token_service
 
     def register_user(
         self,
@@ -76,3 +100,47 @@ class AuthService:
         )
 
         return self.repository.add(user)
+
+    def login_user(
+        self,
+        login_data: UserLogin,
+    ) -> str:
+        """
+        Verifica las credenciales y genera un token de acceso.
+
+        Args:
+            login_data: Correo normalizado y contrasena recibida.
+
+        Returns:
+            Token JWT firmado para el usuario autenticado.
+
+        Raises:
+            InvalidCredentialsError: Cuando el correo no existe o la
+                contrasena no coincide con el hash almacenado.
+            InactiveUserError: Cuando la cuenta esta desactivada.
+            RuntimeError: Cuando el servicio de tokens no fue configurado.
+        """
+        user = self.repository.get_by_email(
+            login_data.email,
+        )
+
+        if user is None:
+            raise InvalidCredentialsError("Correo o contrasena incorrectos.")
+
+        password_matches = self.password_hasher.verify(
+            login_data.password,
+            user.password_hash,
+        )
+
+        if not password_matches:
+            raise InvalidCredentialsError("Correo o contrasena incorrectos.")
+
+        if not user.is_active:
+            raise InactiveUserError("La cuenta de usuario se encuentra inactiva.")
+
+        if self.access_token_service is None:
+            raise RuntimeError("El servicio de tokens no se encuentra configurado.")
+
+        return self.access_token_service.create_access_token(
+            user_id=user.id,
+        )
