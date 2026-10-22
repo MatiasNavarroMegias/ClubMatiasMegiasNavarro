@@ -1,5 +1,9 @@
 """Servicios encargados de aplicar reglas de negocio."""
 
+from app.services.auth import (
+    AuthService,
+    EmailAlreadyRegisteredError,
+)
 from app.services.venue import (
     InvalidVenueHoursError,
     VenueNoChangesError,
@@ -8,6 +12,8 @@ from app.services.venue import (
 )
 
 __all__ = [
+    "AuthService",
+    "EmailAlreadyRegisteredError",
     "InvalidVenueHoursError",
     "VenueNoChangesError",
     "VenueNotFoundError",

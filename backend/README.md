@@ -1436,3 +1436,270 @@ GET /venues/{venue_id}
 POST /venues
 PATCH /venues/{venue_id}
 ```
+
+## Registracion de usuarios
+
+La API permite registrar usuarios mediante:
+
+```http
+POST /auth/register
+```
+
+La operacion recibe los datos obligatorios del perfil y una contrasena.
+
+## Cuerpo de registracion
+
+```json
+{
+  "first_name": "Matias",
+  "last_name": "Megias Navarro",
+  "birth_date": "2000-01-15",
+  "email": "matias@example.com",
+  "password": "ClaveSegura123"
+}
+```
+
+## Validaciones
+
+El esquema `UserRegister` verifica:
+
+- Nombre obligatorio.
+- Apellido obligatorio.
+- Nombre y apellido con un maximo de 50 caracteres.
+- Fecha de nacimiento anterior al dia actual.
+- Correo electronico valido.
+- Correo normalizado en minusculas.
+- Contrasena de entre 8 y 128 caracteres.
+- Al menos una letra mayuscula.
+- Al menos una letra minuscula.
+- Al menos un numero.
+- Ausencia de espacios al inicio o al final de la contrasena.
+
+## Normalizacion
+
+Antes de llegar al servicio, los datos son normalizados.
+
+Ejemplo:
+
+```text
+first_name: " Matias "
+→ "Matias"
+
+last_name: " Megias Navarro "
+→ "Megias Navarro"
+
+email: "MATIAS@EXAMPLE.COM"
+→ "matias@example.com"
+```
+
+La normalizacion del correo evita cuentas duplicadas por diferencias de mayusculas.
+
+## Seguridad de la contrasena
+
+La contrasena original nunca se almacena en PostgreSQL.
+
+El flujo de seguridad es:
+
+```text
+Contrasena validada
+→ PasswordHasher
+→ Argon2
+→ password_hash
+→ PostgreSQL
+```
+
+El modelo `User` solamente contiene:
+
+```text
+password_hash
+```
+
+No contiene:
+
+```text
+password
+plain_password
+```
+
+El hash generado incluye:
+
+- Algoritmo.
+- Parametros.
+- Sal aleatoria.
+- Resultado del hashing.
+
+Aunque dos usuarios elijan la misma contrasena, los hashes pueden ser diferentes debido a la sal aleatoria.
+
+## Capas del registro
+
+```text
+POST /auth/register
+→ UserRegister
+→ AuthService
+→ UserRepository
+→ SQLAlchemy
+→ PostgreSQL
+```
+
+### UserRegister
+
+Valida y normaliza la entrada.
+
+### AuthService
+
+Aplica las reglas del registro:
+
+```text
+Consultar correo
+→ rechazar duplicado
+→ generar hash
+→ construir User
+→ persistir
+```
+
+### UserRepository
+
+Concentra las operaciones SQLAlchemy:
+
+```text
+get_by_email
+add
+```
+
+### PasswordHasher
+
+Centraliza:
+
+```text
+hash
+verify
+```
+
+La funcion `verify` se utilizara posteriormente durante el inicio de sesion.
+
+## Inyeccion de dependencias
+
+FastAPI construye las dependencias necesarias para cada solicitud:
+
+```text
+get_db_session
+→ UserRepository
+→ PasswordHasher
+→ AuthService
+```
+
+La funcion responsable es:
+
+```python
+get_auth_service
+```
+
+## Respuestas HTTP
+
+### Registro exitoso
+
+```text
+201 Created
+```
+
+Ejemplo de respuesta:
+
+```json
+{
+  "id": 1,
+  "first_name": "Matias",
+  "last_name": "Megias Navarro",
+  "birth_date": "2000-01-15",
+  "email": "matias@example.com",
+  "is_active": true,
+  "created_at": "2026-10-22T15:00:00-03:00",
+  "updated_at": "2026-10-22T15:00:00-03:00"
+}
+```
+
+La respuesta no incluye:
+
+```text
+password
+password_hash
+```
+
+### Correo ya registrado
+
+```text
+409 Conflict
+```
+
+Ejemplo:
+
+```json
+{
+  "detail": "Ya existe un usuario registrado con ese correo."
+}
+```
+
+### Datos invalidos
+
+```text
+422 Unprocessable Content
+```
+
+Puede producirse por:
+
+- Correo invalido.
+- Contrasena insegura.
+- Fecha de nacimiento invalida.
+- Nombre o apellido vacio.
+- Limites de longitud superados.
+
+## Pruebas automatizadas
+
+Las pruebas se encuentran en:
+
+```text
+tests/test_user_model.py
+tests/test_user_schema.py
+tests/test_user_repository.py
+tests/test_auth_service.py
+tests/test_auth_api.py
+```
+
+Las pruebas verifican:
+
+- Modelo persistente.
+- Restriccion unica del correo.
+- Ausencia de contrasena en texto plano.
+- Validaciones del registro.
+- Normalizacion de datos.
+- Hashing real con Argon2.
+- Verificacion de contrasena correcta e incorrecta.
+- Rechazo de correos duplicados.
+- Ausencia de hashing ante un correo duplicado.
+- Persistencia mediante el repositorio.
+- Respuesta `201 Created`.
+- Respuesta `409 Conflict`.
+- Respuestas `422 Unprocessable Content`.
+- Ausencia de credenciales en la respuesta publica.
+
+## Verificacion manual
+
+El endpoint se encuentra documentado en Swagger:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+La verificacion manual confirmo:
+
+```text
+POST /auth/register → 201 Created
+Correo duplicado → 409 Conflict
+Contrasena invalida → 422 Unprocessable Content
+```
+
+Tambien se verifico en PostgreSQL que:
+
+- El correo se almacena normalizado.
+- La cuenta se crea activa.
+- La contrasena se almacena mediante un hash Argon2.
+- No existe una columna de contrasena en texto plano.
