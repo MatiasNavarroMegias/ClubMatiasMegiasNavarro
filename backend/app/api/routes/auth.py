@@ -1,8 +1,17 @@
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.dependencies import AuthServiceDependency
-from app.schemas import UserRegister, UserResponse
-from app.services import EmailAlreadyRegisteredError
+from app.schemas import (
+    TokenResponse,
+    UserLogin,
+    UserRegister,
+    UserResponse,
+)
+from app.services import (
+    EmailAlreadyRegisteredError,
+    InactiveUserError,
+    InvalidCredentialsError,
+)
 
 # Agrupa los endpoints relacionados con autenticacion.
 router = APIRouter(
@@ -39,3 +48,43 @@ def register_user(
         ) from error
 
     return UserResponse.model_validate(user)
+
+
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+)
+def login_user(
+    login_data: UserLogin,
+    service: AuthServiceDependency,
+) -> TokenResponse:
+    """
+    Inicia sesion mediante correo electronico y contrasena.
+
+    El servicio busca la cuenta, verifica el hash Argon2, comprueba
+    que el usuario se encuentre activo y genera un token JWT.
+
+    Raises:
+        HTTPException: Con codigo 401 para credenciales incorrectas.
+        HTTPException: Con codigo 403 para una cuenta inactiva.
+    """
+    try:
+        access_token = service.login_user(login_data)
+    except InvalidCredentialsError as error:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(error),
+            headers={
+                "WWW-Authenticate": "Bearer",
+            },
+        ) from error
+    except InactiveUserError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(error),
+        ) from error
+
+    return TokenResponse(
+        access_token=access_token,
+    )
