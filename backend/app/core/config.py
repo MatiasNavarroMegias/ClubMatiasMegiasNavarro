@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,9 +26,31 @@ class Settings(BaseSettings):
     # Indica si las herramientas de depuracion deben estar activas.
     app_debug: bool = False
 
-    # Direccion utilizada posteriormente por SQLAlchemy para conectarse
-    # con PostgreSQL.
+    # Direccion utilizada por SQLAlchemy para conectarse con PostgreSQL.
     database_url: str
+
+    # Clave secreta utilizada para firmar y verificar tokens JWT.
+    #
+    # No posee un valor predeterminado porque debe definirse de forma
+    # segura en cada entorno y nunca almacenarse dentro del repositorio.
+    jwt_secret_key: str = Field(
+        min_length=32,
+    )
+
+    # Algoritmo simetrico utilizado para firmar los tokens.
+    #
+    # Por ahora se restringe a HS256 para evitar configuraciones
+    # accidentales con algoritmos no contemplados por la aplicacion.
+    jwt_algorithm: Literal["HS256"] = "HS256"
+
+    # Duracion del token de acceso expresada en minutos.
+    #
+    # El valor debe ser positivo y puede modificarse mediante una
+    # variable de entorno sin cambiar el codigo.
+    access_token_expire_minutes: int = Field(
+        default=60,
+        gt=0,
+    )
 
     # Configura la lectura del archivo .env.
     #

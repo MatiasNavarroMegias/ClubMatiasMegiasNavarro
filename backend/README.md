@@ -1703,3 +1703,268 @@ Tambien se verifico en PostgreSQL que:
 - La cuenta se crea activa.
 - La contrasena se almacena mediante un hash Argon2.
 - No existe una columna de contrasena en texto plano.
+
+## Inicio de sesion
+
+La API permite iniciar sesion mediante:
+
+```http
+POST /auth/login
+```
+
+La operacion recibe un correo electronico y una contrasena.
+
+## Cuerpo de la solicitud
+
+```json
+{
+  "email": "matias@example.com",
+  "password": "ClaveSegura123"
+}
+```
+
+## Flujo de autenticacion
+
+```text
+POST /auth/login
+→ UserLogin
+→ AuthService
+→ UserRepository
+→ PasswordHasher
+→ AccessTokenService
+→ TokenResponse
+```
+
+### UserLogin
+
+El esquema:
+
+- Valida el formato del correo.
+- Normaliza el correo en minusculas.
+- Rechaza una contrasena vacia.
+- Rechaza espacios al inicio o al final.
+- Conserva exactamente el valor de la contrasena.
+
+Durante el login no se vuelve a aplicar la politica completa utilizada durante el registro.
+
+La contrasena se verifica contra el hash almacenado:
+
+```text
+Contrasena ingresada
++ password_hash de PostgreSQL
+→ PasswordHasher.verify
+→ credencial valida o invalida
+```
+
+## Reglas del servicio
+
+`AuthService.login_user` ejecuta:
+
+```text
+Buscar usuario por correo
+→ verificar contrasena con Argon2
+→ comprobar que la cuenta este activa
+→ generar JWT
+```
+
+El token solamente se genera si todas las comprobaciones anteriores son correctas.
+
+## Protección ante enumeracion de usuarios
+
+Un correo desconocido y una contrasena incorrecta producen el mismo mensaje:
+
+```text
+Correo o contrasena incorrectos.
+```
+
+Esto evita revelar si una direccion de correo se encuentra registrada.
+
+## Token de acceso
+
+Cuando las credenciales son validas, la API devuelve:
+
+```json
+{
+  "access_token": "TOKEN_JWT",
+  "token_type": "bearer"
+}
+```
+
+El token contiene solamente:
+
+```text
+sub
+iat
+exp
+```
+
+### `sub`
+
+Contiene el identificador del usuario como texto.
+
+### `iat`
+
+Indica la fecha y hora de emision.
+
+### `exp`
+
+Indica la fecha y hora de vencimiento.
+
+El token no contiene:
+
+```text
+password
+password_hash
+email
+first_name
+last_name
+birth_date
+```
+
+## Configuracion JWT
+
+La configuracion se obtiene desde variables de entorno:
+
+```dotenv
+JWT_SECRET_KEY=replace-with-a-secure-random-value-of-at-least-32-characters
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+```
+
+La clave real debe definirse en:
+
+```text
+backend/.env
+```
+
+El archivo `.env` se encuentra excluido de Git.
+
+La clave puede generarse mediante:
+
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(64))"
+```
+
+La clave no debe incluirse en:
+
+- El codigo fuente.
+- El README.
+- El archivo `.env.example`.
+- Los commits.
+- Las capturas de pantalla.
+- La documentacion publica.
+
+## Respuestas HTTP
+
+### Inicio de sesion exitoso
+
+```text
+200 OK
+```
+
+### Credenciales incorrectas
+
+```text
+401 Unauthorized
+```
+
+La respuesta incluye:
+
+```json
+{
+  "detail": "Correo o contrasena incorrectos."
+}
+```
+
+Tambien incluye:
+
+```http
+WWW-Authenticate: Bearer
+```
+
+### Cuenta inactiva
+
+```text
+403 Forbidden
+```
+
+Ejemplo:
+
+```json
+{
+  "detail": "La cuenta de usuario se encuentra inactiva."
+}
+```
+
+### Datos invalidos
+
+```text
+422 Unprocessable Content
+```
+
+Puede producirse por:
+
+- Correo con formato invalido.
+- Contrasena vacia.
+- Contrasena demasiado extensa.
+- Espacios externos en la contrasena.
+
+## Validacion del token
+
+`AccessTokenService` verifica:
+
+- Firma.
+- Algoritmo.
+- Fecha de vencimiento.
+- Existencia de `sub`.
+- Tipo de `sub`.
+- Identificador mayor que cero.
+
+Los tokens vencidos, malformados o firmados con otra clave generan un error de token invalido.
+
+## Pruebas automatizadas
+
+Las pruebas relacionadas con el inicio de sesion se encuentran en:
+
+```text
+tests/test_access_token_service.py
+tests/test_login_schema.py
+tests/test_login_service.py
+tests/test_auth_api.py
+```
+
+Las pruebas verifican:
+
+- Creacion del JWT.
+- Claims `sub`, `iat` y `exp`.
+- Duracion configurable.
+- Firma incorrecta.
+- Token vencido.
+- Token malformado.
+- Identificador invalido.
+- Normalizacion del correo.
+- Verificacion de la contrasena.
+- Credenciales incorrectas.
+- Cuenta inactiva.
+- Respuestas 200, 401, 403 y 422.
+- Encabezado `WWW-Authenticate`.
+- Ausencia de informacion privada en la respuesta.
+
+## Verificacion manual
+
+El inicio de sesion puede probarse desde Swagger:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+La verificacion realizada confirmo:
+
+```text
+Credenciales validas → 200 OK
+Contrasena incorrecta → 401 Unauthorized
+Correo desconocido → 401 Unauthorized
+Entrada invalida → 422 Unprocessable Content
+```
+
+El token recibido debe tratarse como una credencial temporal y no debe publicarse.

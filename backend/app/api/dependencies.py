@@ -3,8 +3,9 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.database import get_db_session
-from app.core.security import PasswordHasher
+from app.core.security import AccessTokenService, PasswordHasher
 from app.repositories import UserRepository, VenueRepository
 from app.services import AuthService, VenueService
 
@@ -18,22 +19,29 @@ def get_auth_service(
     """
     Construye el servicio de autenticacion para una solicitud HTTP.
 
-    FastAPI obtiene una sesion de SQLAlchemy. Luego se construyen el
-    repositorio de usuarios y el componente de hashing necesarios
-    para aplicar las reglas de registracion.
+    FastAPI obtiene la sesion de SQLAlchemy y la configuracion validada.
+    Luego construye el repositorio, el componente de hashing y el
+    servicio encargado de crear tokens JWT.
 
     Args:
         database_session: Sesion asociada a la solicitud actual.
 
     Returns:
-        Servicio preparado para registrar y autenticar usuarios.
+        Servicio preparado para registrar e iniciar sesion.
     """
+    settings = get_settings()
     repository = UserRepository(database_session)
     password_hasher = PasswordHasher()
+    access_token_service = AccessTokenService(
+        secret_key=settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+        expire_minutes=settings.access_token_expire_minutes,
+    )
 
     return AuthService(
         repository=repository,
         password_hasher=password_hasher,
+        access_token_service=access_token_service,
     )
 
 
