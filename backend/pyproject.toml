@@ -17,6 +17,7 @@ dependencies = [
     "pydantic-settings",
     "pwdlib[argon2]",
     "email-validator",
+    "PyJWT",
 ]
 
 [project.optional-dependencies]
