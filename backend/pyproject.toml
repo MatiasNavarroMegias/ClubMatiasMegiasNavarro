@@ -16,6 +16,7 @@ dependencies = [
     "psycopg[binary]",
     "pydantic-settings",
     "pwdlib[argon2]",
+    "email-validator",
 ]
 
 [project.optional-dependencies]
