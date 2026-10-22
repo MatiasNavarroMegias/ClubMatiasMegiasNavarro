@@ -3,6 +3,8 @@
 from app.services.auth import (
     AuthService,
     EmailAlreadyRegisteredError,
+    InactiveUserError,
+    InvalidCredentialsError,
 )
 from app.services.venue import (
     InvalidVenueHoursError,
@@ -14,6 +16,8 @@ from app.services.venue import (
 __all__ = [
     "AuthService",
     "EmailAlreadyRegisteredError",
+    "InactiveUserError",
+    "InvalidCredentialsError",
     "InvalidVenueHoursError",
     "VenueNoChangesError",
     "VenueNotFoundError",
