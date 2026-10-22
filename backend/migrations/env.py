@@ -3,13 +3,14 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-# Importa los modelos para registrarlos dentro de Base.metadata.
-#
-# Venue no se utiliza directamente en este archivo, pero su importacion
-# permite que Alembic detecte la tabla al generar migraciones automaticas.
 from app.core.config import get_settings
 from app.core.database import Base
-from app.models import Venue  # noqa: F401
+
+# Importa los modelos para registrarlos dentro de Base.metadata.
+#
+# Las clases no se utilizan directamente en este archivo, pero sus
+# importaciones permiten que Alembic detecte las tablas automaticamente.
+from app.models import User, Venue  # noqa: F401
 
 # Obtiene el objeto de configuracion creado por Alembic.
 #
