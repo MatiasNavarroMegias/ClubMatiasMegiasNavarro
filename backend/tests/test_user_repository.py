@@ -120,3 +120,37 @@ def test_repository_only_receives_user_with_password_hash() -> None:
     assert persisted_user.password_hash == "$argon2id$hash-de-prueba"
     assert not hasattr(persisted_user, "password")
     assert not hasattr(persisted_user, "plain_password")
+
+
+def test_get_by_id_returns_existing_user() -> None:
+    """
+    Verifica que el repositorio devuelva el usuario identificado.
+    """
+    database_session = MagicMock(spec=Session)
+    expected_user = create_user()
+    database_session.get.return_value = expected_user
+
+    repository = UserRepository(database_session)
+
+    user = repository.get_by_id(7)
+
+    assert user is expected_user
+    database_session.get.assert_called_once_with(User, 7)
+
+
+def test_get_by_id_returns_none_when_user_does_not_exist() -> None:
+    """
+    Verifica que un identificador inexistente produzca None.
+
+    La dependencia de autenticacion decidira posteriormente como
+    convertir este resultado en una respuesta HTTP.
+    """
+    database_session = MagicMock(spec=Session)
+    database_session.get.return_value = None
+
+    repository = UserRepository(database_session)
+
+    user = repository.get_by_id(999)
+
+    assert user is None
+    database_session.get.assert_called_once_with(User, 999)
