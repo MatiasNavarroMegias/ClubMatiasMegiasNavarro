@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "club-matias-megias-navarro-api"
 version = "0.1.0"
-description = "API REST para la gestión de espacios deportivos."
+description = "API REST para la gestion de espacios deportivos."
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
 dependencies = [
@@ -15,6 +15,7 @@ dependencies = [
     "alembic",
     "psycopg[binary]",
     "pydantic-settings",
+    "pwdlib[argon2]",
 ]
 
 [project.optional-dependencies]
@@ -24,6 +25,10 @@ dev = [
     "pytest-cov",
     "ruff",
 ]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["migrations*", "tests*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
