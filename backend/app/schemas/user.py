@@ -143,9 +143,11 @@ class UserUpdate(BaseModel):
     """
     Representa los campos editables del perfil.
 
-    Todos los campos son opcionales para permitir actualizaciones
-    parciales. El correo no forma parte del esquema porque no puede
-    modificarse desde el perfil.
+    Todos los campos pueden omitirse para permitir actualizaciones
+    parciales. Cuando un campo se envia, debe contener un valor valido.
+
+    El correo no forma parte del esquema porque no puede modificarse
+    desde el perfil.
     """
 
     first_name: str | None = Field(
@@ -172,12 +174,14 @@ class UserUpdate(BaseModel):
     def normalize_optional_person_name(
         cls,
         value: str | None,
-    ) -> str | None:
+    ) -> str:
         """
-        Normaliza los nombres recibidos en una actualizacion parcial.
+        Normaliza los nombres enviados en una actualizacion parcial.
+
+        Un campo puede omitirse, pero no puede enviarse como null.
         """
         if value is None:
-            return None
+            raise ValueError("El nombre y el apellido no pueden ser nulos.")
 
         normalized_value = value.strip()
 
@@ -191,17 +195,19 @@ class UserUpdate(BaseModel):
     def validate_optional_birth_date(
         cls,
         value: date | None,
-    ) -> date | None:
+    ) -> date:
         """
-        Verifica que la fecha de nacimiento sea anterior al dia actual.
+        Verifica que la fecha enviada no sea nula, actual ni futura.
         """
-        if value is not None and value >= date.today():
+        if value is None:
+            raise ValueError("La fecha de nacimiento no puede ser nula.")
+
+        if value >= date.today():
             raise ValueError("La fecha de nacimiento debe ser anterior al dia actual.")
 
         return value
 
-        # Rechaza campos que no pertenecen al perfil editable.
-
+    # Rechaza campos que no pertenecen al perfil editable.
     #
     # Esto impide intentar modificar email, password_hash, is_active,
     # id u otros campos no contemplados por este esquema.
