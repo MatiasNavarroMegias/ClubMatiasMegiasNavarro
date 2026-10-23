@@ -2077,3 +2077,11 @@ Verifican:
 - Solicitud sin token.
 - Perfil del usuario autenticado.
 - Ausencia de contrasena y hash en la respuesta.
+
+## Perfil de usuario
+
+El usuario autenticado puede consultar y editar su perfil mediante:
+
+```http
+GET /users/me
+PATCH /users/me
