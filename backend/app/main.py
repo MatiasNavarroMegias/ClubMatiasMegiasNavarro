@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.api.routes import auth_router, venues_router
+from app.api.routes import auth_router, users_router, venues_router
 
 # Esta instancia representa la aplicacion web principal.
 # FastAPI utiliza esta configuracion para registrar las rutas
@@ -12,8 +12,9 @@ app = FastAPI(
 )
 
 
-# Registra los endpoints relacionados con autenticacion y sedes.
+# Registra los endpoints disponibles dentro de la aplicacion.
 app.include_router(auth_router)
+app.include_router(users_router)
 app.include_router(venues_router)
 
 

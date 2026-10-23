@@ -36,6 +36,21 @@ class UserRepository:
 
         return self.database_session.scalar(statement)
 
+    def get_by_id(self, user_id: int) -> User | None:
+        """
+        Busca un usuario mediante su identificador.
+
+        Esta operacion se utiliza despues de verificar el token JWT para
+        obtener la cuenta autenticada desde PostgreSQL.
+
+        Args:
+            user_id: Identificador obtenido desde el claim sub del token.
+
+        Returns:
+            El usuario encontrado o None cuando la cuenta no existe.
+        """
+        return self.database_session.get(User, user_id)
+
     def add(self, user: User) -> User:
         """
         Persiste un usuario y recupera los valores generados.
