@@ -1,40 +1,70 @@
 import 'package:flutter/material.dart';
 
+import '../features/auth/data/services/auth_api_client.dart';
+import '../features/auth/data/services/session_storage.dart';
+import '../features/auth/presentation/controllers/auth_controller.dart';
+import '../features/auth/presentation/screens/session_gate.dart';
 import '../features/venues/data/services/venue_api_client.dart';
-import '../features/venues/presentation/screens/venue_list_screen.dart';
 import 'theme/app_theme.dart';
 
 /// Widget principal de ClubMatiasMegiasNavarro.
 ///
-/// Este widget centraliza la configuracion global de MaterialApp,
-/// incluyendo el nombre, los temas visuales y la pantalla inicial.
-class ClubApp extends StatelessWidget {
-  const ClubApp({super.key, this.venueApiClient});
+/// Este widget centraliza el tema y construye las dependencias que
+/// administran la autenticacion durante toda la aplicacion.
+class ClubApp extends StatefulWidget {
+  const ClubApp({super.key, this.authController, this.venueApiClient});
+
+  /// Controlador opcional utilizado durante las pruebas.
+  ///
+  /// En una ejecucion normal, ClubApp construye un controlador con el
+  /// cliente HTTP real y el almacenamiento seguro del dispositivo.
+  final AuthController? authController;
 
   /// Cliente opcional utilizado por la pantalla de sedes.
-  ///
-  /// Durante la ejecucion normal se utiliza el cliente real. Las pruebas
-  /// pueden inyectar un cliente simulado para evitar solicitudes reales.
   final VenueApiClient? venueApiClient;
+
+  @override
+  State<ClubApp> createState() => _ClubAppState();
+}
+
+class _ClubAppState extends State<ClubApp> {
+  late final AuthController _authController;
+  late final bool _ownsAuthController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _ownsAuthController = widget.authController == null;
+    _authController =
+        widget.authController ??
+        AuthController(
+          apiClient: AuthApiClient(),
+          sessionStorage: SecureSessionStorage(),
+        );
+  }
+
+  @override
+  void dispose() {
+    if (_ownsAuthController) {
+      _authController.dispose();
+    }
+
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      // Oculta la etiqueta DEBUG que Flutter muestra durante el desarrollo.
       debugShowCheckedModeBanner: false,
-
-      // Nombre utilizado por el sistema operativo y algunas herramientas.
       title: 'ClubMatiasMegiasNavarro',
-
-      // Configuraciones visuales para los modos claro y oscuro.
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-
-      // Utiliza automaticamente el tema configurado en el dispositivo.
       themeMode: ThemeMode.system,
-
-      // Muestra el listado de sedes como flujo inicial de la aplicacion.
-      home: VenueListScreen(apiClient: venueApiClient),
+      home: SessionGate(
+        authController: _authController,
+        venueApiClient: widget.venueApiClient,
+      ),
     );
   }
 }
