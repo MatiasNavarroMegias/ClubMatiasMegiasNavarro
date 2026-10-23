@@ -66,3 +66,18 @@ class UserRepository:
         self.database_session.refresh(user)
 
         return user
+
+    def save(self, user: User) -> User:
+        """
+        Confirma los cambios de un usuario existente.
+
+        Args:
+            user: Usuario cuyo perfil fue modificado por el servicio.
+
+        Returns:
+            Usuario actualizado con los valores confirmados por PostgreSQL.
+        """
+        self.database_session.commit()
+        self.database_session.refresh(user)
+
+        return user

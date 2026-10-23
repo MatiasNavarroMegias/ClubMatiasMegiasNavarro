@@ -5,6 +5,7 @@ from app.schemas.user import (
     UserLogin,
     UserRegister,
     UserResponse,
+    UserUpdate,
 )
 from app.schemas.venue import VenueCreate, VenueResponse, VenueUpdate
 
@@ -13,6 +14,7 @@ __all__ = [
     "UserLogin",
     "UserRegister",
     "UserResponse",
+    "UserUpdate",
     "VenueCreate",
     "VenueResponse",
     "VenueUpdate",
