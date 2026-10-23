@@ -1968,3 +1968,112 @@ Entrada invalida → 422 Unprocessable Content
 ```
 
 El token recibido debe tratarse como una credencial temporal y no debe publicarse.
+
+## Usuario autenticado
+
+La API permite consultar el perfil asociado al token mediante:
+
+```http
+GET /users/me
+```
+
+La solicitud debe incluir:
+
+```http
+Authorization: Bearer TOKEN_JWT
+```
+
+## Flujo de autenticacion
+
+```text
+Authorization Bearer
+→ validacion del JWT
+→ claim sub
+→ UserRepository.get_by_id
+→ comprobacion de cuenta activa
+→ UserResponse
+```
+
+El identificador del usuario se obtiene exclusivamente desde el token.
+
+El cliente no puede enviar manualmente otro `user_id` para consultar un perfil diferente.
+
+## Respuestas
+
+### Usuario autenticado
+
+```text
+200 OK
+```
+
+La respuesta contiene:
+
+- Identificador.
+- Nombre.
+- Apellido.
+- Fecha de nacimiento.
+- Correo.
+- Estado de la cuenta.
+- Fechas de auditoria.
+
+La respuesta no contiene:
+
+```text
+password
+password_hash
+```
+
+### Token ausente o invalido
+
+```text
+401 Unauthorized
+```
+
+Esto incluye:
+
+- Encabezado Authorization ausente.
+- Token vencido.
+- Token alterado.
+- Firma incorrecta.
+- Usuario inexistente.
+
+### Cuenta inactiva
+
+```text
+403 Forbidden
+```
+
+## Integracion con Swagger
+
+Los endpoints protegidos utilizan autenticacion HTTP Bearer.
+
+Primero se obtiene un token mediante:
+
+```http
+POST /auth/login
+```
+
+Luego se utiliza el boton `Authorize` de Swagger para ingresar el JWT y consultar:
+
+```http
+GET /users/me
+```
+
+## Pruebas
+
+Las pruebas se encuentran en:
+
+```text
+tests/test_current_user_api.py
+```
+
+Verifican:
+
+- Token valido.
+- Token invalido.
+- Token vencido.
+- Usuario inexistente.
+- Usuario inactivo.
+- Solicitud sin token.
+- Perfil del usuario autenticado.
+- Ausencia de contrasena y hash en la respuesta.
