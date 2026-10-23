@@ -1,7 +1,7 @@
 from app.core.security import AccessTokenService, PasswordHasher
 from app.models import User
 from app.repositories import UserRepository
-from app.schemas import UserLogin, UserRegister
+from app.schemas import UserLogin, UserRegister, UserUpdate
 
 
 class EmailAlreadyRegisteredError(Exception):
@@ -144,3 +144,41 @@ class AuthService:
         return self.access_token_service.create_access_token(
             user_id=user.id,
         )
+
+    def update_profile(
+        self,
+        user: User,
+        update_data: UserUpdate,
+    ) -> User:
+        """
+        Actualiza los campos editables del perfil autenticado.
+
+        Args:
+            user: Usuario obtenido desde la sesion autenticada.
+            update_data: Campos validados que se desean modificar.
+
+        Returns:
+            Usuario actualizado.
+
+        Raises:
+            ValueError: Cuando no se envio ningun campo o cuando los
+                valores coinciden con el perfil actual.
+        """
+        changes = update_data.model_dump(exclude_unset=True)
+
+        if not changes:
+            raise ValueError("Debe indicar al menos un campo para actualizar.")
+
+        effective_changes = {
+            field_name: value
+            for field_name, value in changes.items()
+            if getattr(user, field_name) != value
+        }
+
+        if not effective_changes:
+            raise ValueError("Los datos enviados coinciden con el perfil actual.")
+
+        for field_name, value in effective_changes.items():
+            setattr(user, field_name, value)
+
+        return self.repository.save(user)

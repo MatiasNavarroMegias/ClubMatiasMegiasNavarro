@@ -139,6 +139,75 @@ class UserLogin(BaseModel):
         return value
 
 
+class UserUpdate(BaseModel):
+    """
+    Representa los campos editables del perfil.
+
+    Todos los campos son opcionales para permitir actualizaciones
+    parciales. El correo no forma parte del esquema porque no puede
+    modificarse desde el perfil.
+    """
+
+    first_name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=50,
+        examples=["Matias"],
+    )
+
+    last_name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=50,
+        examples=["Megias Navarro"],
+    )
+
+    birth_date: date | None = Field(
+        default=None,
+        examples=["2000-01-15"],
+    )
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def normalize_optional_person_name(
+        cls,
+        value: str | None,
+    ) -> str | None:
+        """
+        Normaliza los nombres recibidos en una actualizacion parcial.
+        """
+        if value is None:
+            return None
+
+        normalized_value = value.strip()
+
+        if not normalized_value:
+            raise ValueError("El nombre y el apellido no pueden contener solo espacios.")
+
+        return normalized_value
+
+    @field_validator("birth_date")
+    @classmethod
+    def validate_optional_birth_date(
+        cls,
+        value: date | None,
+    ) -> date | None:
+        """
+        Verifica que la fecha de nacimiento sea anterior al dia actual.
+        """
+        if value is not None and value >= date.today():
+            raise ValueError("La fecha de nacimiento debe ser anterior al dia actual.")
+
+        return value
+
+        # Rechaza campos que no pertenecen al perfil editable.
+
+    #
+    # Esto impide intentar modificar email, password_hash, is_active,
+    # id u otros campos no contemplados por este esquema.
+    model_config = ConfigDict(extra="forbid")
+
+
 class TokenResponse(BaseModel):
     """
     Representa el token entregado despues de un login exitoso.
