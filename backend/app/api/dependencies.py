@@ -1,16 +1,44 @@
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db_session
-from app.core.security import AccessTokenService, PasswordHasher
+from app.core.security import (
+    AccessTokenService,
+    InvalidAccessTokenError,
+    PasswordHasher,
+)
+from app.models import User
 from app.repositories import UserRepository, VenueRepository
 from app.services import AuthService, VenueService
 
 # Tipo reutilizable que representa una sesion administrada por FastAPI.
 DatabaseSession = Annotated[Session, Depends(get_db_session)]
+
+# Extrae las credenciales Bearer desde el encabezado Authorization.
+#
+# Swagger muestra un unico campo para ingresar el JWT obtenido mediante
+# POST /auth/login, que utiliza un cuerpo JSON.
+bearer_scheme = HTTPBearer()
+
+
+def get_access_token_service() -> AccessTokenService:
+    """
+    Construye el servicio encargado de validar y generar tokens JWT.
+
+    Returns:
+        Servicio configurado mediante variables de entorno.
+    """
+    settings = get_settings()
+
+    return AccessTokenService(
+        secret_key=settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+        expire_minutes=settings.access_token_expire_minutes,
+    )
 
 
 def get_auth_service(
@@ -29,14 +57,9 @@ def get_auth_service(
     Returns:
         Servicio preparado para registrar e iniciar sesion.
     """
-    settings = get_settings()
     repository = UserRepository(database_session)
     password_hasher = PasswordHasher()
-    access_token_service = AccessTokenService(
-        secret_key=settings.jwt_secret_key,
-        algorithm=settings.jwt_algorithm,
-        expire_minutes=settings.access_token_expire_minutes,
-    )
+    access_token_service = get_access_token_service()
 
     return AuthService(
         repository=repository,
@@ -45,15 +68,72 @@ def get_auth_service(
     )
 
 
+def get_current_user(
+    database_session: DatabaseSession,
+    credentials: Annotated[
+        HTTPAuthorizationCredentials,
+        Depends(bearer_scheme),
+    ],
+) -> User:
+    """
+    Obtiene el usuario autenticado mediante el token Bearer.
+
+    El token se valida antes de consultar PostgreSQL. Luego se comprueba
+    que la cuenta exista y permanezca activa.
+
+    Args:
+        database_session: Sesion asociada a la solicitud actual.
+        credentials: Credenciales Bearer extraidas del encabezado
+            Authorization.
+
+    Returns:
+        Usuario autenticado recuperado desde PostgreSQL.
+
+    Raises:
+        HTTPException: Con codigo 401 cuando el token no es valido,
+            esta vencido o identifica una cuenta inexistente.
+        HTTPException: Con codigo 403 cuando la cuenta esta inactiva.
+    """
+    access_token_service = get_access_token_service()
+    repository = UserRepository(database_session)
+    token = credentials.credentials
+
+    try:
+        user_id = access_token_service.get_user_id(token)
+    except InvalidAccessTokenError as error:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No se pudo validar la sesion.",
+            headers={
+                "WWW-Authenticate": "Bearer",
+            },
+        ) from error
+
+    user = repository.get_by_id(user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No se pudo validar la sesion.",
+            headers={
+                "WWW-Authenticate": "Bearer",
+            },
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="La cuenta de usuario se encuentra inactiva.",
+        )
+
+    return user
+
+
 def get_venue_service(
     database_session: DatabaseSession,
 ) -> VenueService:
     """
     Construye el servicio de sedes para una solicitud HTTP.
-
-    FastAPI obtiene una sesion mediante get_db_session. Luego esta
-    funcion crea el repositorio y finalmente construye el servicio
-    que contiene las reglas de negocio.
 
     Args:
         database_session: Sesion de SQLAlchemy asociada a la solicitud.
@@ -72,6 +152,11 @@ AuthServiceDependency = Annotated[
     Depends(get_auth_service),
 ]
 
+# Tipo reutilizable para inyectar el usuario autenticado.
+CurrentUser = Annotated[
+    User,
+    Depends(get_current_user),
+]
 
 # Tipo reutilizable para inyectar VenueService en los endpoints.
 VenueServiceDependency = Annotated[
