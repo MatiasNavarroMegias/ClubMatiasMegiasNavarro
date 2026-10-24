@@ -1,5 +1,10 @@
 """Esquemas utilizados para validar entradas y construir respuestas."""
 
+from app.schemas.sports_space import (
+    SportsSpaceCreate,
+    SportsSpaceResponse,
+    SportsSpaceUpdate,
+)
 from app.schemas.user import (
     TokenResponse,
     UserLogin,
@@ -10,6 +15,9 @@ from app.schemas.user import (
 from app.schemas.venue import VenueCreate, VenueResponse, VenueUpdate
 
 __all__ = [
+    "SportsSpaceCreate",
+    "SportsSpaceResponse",
+    "SportsSpaceUpdate",
     "TokenResponse",
     "UserLogin",
     "UserRegister",
