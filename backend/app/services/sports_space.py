@@ -16,7 +16,8 @@ class SportsSpaceAlreadyExistsError(Exception):
     """
     Indica que ya existe un espacio con la misma identidad.
 
-    La identidad se compone por sede, tipo de deporte y numero.
+    La identidad de un espacio se compone por la sede, el tipo de
+    deporte y el numero asignado dentro de esa sede.
     """
 
 
@@ -37,7 +38,7 @@ class SportsSpaceVenueNotFoundError(Exception):
 
 class SportsSpaceVenueInactiveError(Exception):
     """
-    Indica que no se puede crear un espacio dentro de una sede inactiva.
+    Indica que no puede crearse un espacio dentro de una sede inactiva.
     """
 
 
@@ -46,7 +47,7 @@ class SportsSpaceService:
     Aplica las reglas de negocio de los espacios deportivos.
 
     El servicio valida las sedes, evita espacios duplicados y coordina
-    las operaciones de persistencia de los repositorios.
+    las operaciones de consulta y persistencia de los repositorios.
     """
 
     def __init__(
@@ -55,7 +56,7 @@ class SportsSpaceService:
         venue_repository: VenueRepository,
     ) -> None:
         """
-        Inicializa el servicio con sus repositorios.
+        Inicializa el servicio con los repositorios necesarios.
 
         Args:
             repository: Repositorio de espacios deportivos.
@@ -77,6 +78,8 @@ class SportsSpaceService:
         El tipo deportivo se normaliza antes de enviarlo al repositorio
         para mantener consultas consistentes.
 
+        Los filtros pueden utilizarse individualmente o combinarse.
+
         Args:
             venue_id: Identificador opcional de la sede.
             sport_type: Tipo deportivo opcional.
@@ -84,6 +87,9 @@ class SportsSpaceService:
 
         Returns:
             Lista de espacios ordenada por el repositorio.
+
+        Raises:
+            ValueError: Cuando sport_type contiene solamente espacios.
         """
         normalized_sport_type = self._normalize_optional_sport_type(
             sport_type,
@@ -106,7 +112,7 @@ class SportsSpaceService:
             sports_space_id: Identificador interno del espacio.
 
         Returns:
-            El espacio encontrado.
+            Espacio deportivo encontrado.
 
         Raises:
             SportsSpaceNotFoundError: Cuando el espacio no existe.
@@ -129,11 +135,15 @@ class SportsSpaceService:
         """
         Crea un espacio deportivo dentro de una sede activa.
 
+        Antes de construir el modelo, el servicio verifica que la sede
+        exista, permanezca activa y no tenga otro espacio con el mismo
+        deporte y numero.
+
         Args:
             sports_space_data: Datos validados del nuevo espacio.
 
         Returns:
-            Espacio persistido con los valores generados.
+            Espacio persistido con los valores generados por PostgreSQL.
 
         Raises:
             SportsSpaceVenueNotFoundError: Cuando la sede no existe.
@@ -184,19 +194,21 @@ class SportsSpaceService:
         """
         Modifica parcialmente un espacio deportivo existente.
 
-        Antes de guardar, se comprueba que la identidad final no
-        colisione con otro espacio de la misma sede.
+        La sede no puede modificarse. Si cambia el deporte o el numero,
+        se comprueba que la identidad final no pertenezca a otro
+        espacio dentro de la misma sede.
 
         Args:
             sports_space_id: Identificador del espacio.
             sports_space_data: Campos recibidos mediante PATCH.
 
         Returns:
-            Espacio actualizado.
+            Espacio deportivo actualizado.
 
         Raises:
             SportsSpaceNotFoundError: Cuando el espacio no existe.
-            SportsSpaceNoChangesError: Cuando no existen cambios reales.
+            SportsSpaceNoChangesError: Cuando no se recibieron campos
+                o los valores coinciden con los datos actuales.
             SportsSpaceAlreadyExistsError: Cuando la identidad final
                 pertenece a otro espacio.
         """
@@ -237,16 +249,11 @@ class SportsSpaceService:
         )
 
         if identity_was_modified:
-            existing_space = self.repository.get_by_identity(
-                venue_id=sports_space.venue_id,
+            self._ensure_identity_is_available(
+                sports_space=sports_space,
                 sport_type=final_sport_type,
                 space_number=final_space_number,
             )
-
-            if existing_space is not None and existing_space.id != sports_space.id:
-                raise SportsSpaceAlreadyExistsError(
-                    "Ya existe un espacio deportivo con ese deporte y numero dentro de la sede."
-                )
 
         for field_name, new_value in effective_changes.items():
             setattr(
@@ -256,6 +263,39 @@ class SportsSpaceService:
             )
 
         return self.repository.save(sports_space)
+
+    def _ensure_identity_is_available(
+        self,
+        *,
+        sports_space: SportsSpace,
+        sport_type: str,
+        space_number: int,
+    ) -> None:
+        """
+        Verifica que la identidad final no pertenezca a otro espacio.
+
+        El repositorio puede devolver el mismo espacio que se esta
+        actualizando. Ese resultado no representa una colision.
+
+        Args:
+            sports_space: Espacio que se esta modificando.
+            sport_type: Tipo deportivo final.
+            space_number: Numero final dentro de la sede.
+
+        Raises:
+            SportsSpaceAlreadyExistsError: Cuando la identidad final
+                pertenece a otro registro.
+        """
+        existing_space = self.repository.get_by_identity(
+            venue_id=sports_space.venue_id,
+            sport_type=sport_type,
+            space_number=space_number,
+        )
+
+        if existing_space is not None and existing_space.id != sports_space.id:
+            raise SportsSpaceAlreadyExistsError(
+                "Ya existe un espacio deportivo con ese deporte y numero dentro de la sede."
+            )
 
     @staticmethod
     def _normalize_optional_sport_type(
