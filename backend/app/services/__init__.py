@@ -6,6 +6,14 @@ from app.services.auth import (
     InactiveUserError,
     InvalidCredentialsError,
 )
+from app.services.sports_space import (
+    SportsSpaceAlreadyExistsError,
+    SportsSpaceNoChangesError,
+    SportsSpaceNotFoundError,
+    SportsSpaceService,
+    SportsSpaceVenueInactiveError,
+    SportsSpaceVenueNotFoundError,
+)
 from app.services.venue import (
     InvalidVenueHoursError,
     VenueNoChangesError,
@@ -19,6 +27,12 @@ __all__ = [
     "InactiveUserError",
     "InvalidCredentialsError",
     "InvalidVenueHoursError",
+    "SportsSpaceAlreadyExistsError",
+    "SportsSpaceNoChangesError",
+    "SportsSpaceNotFoundError",
+    "SportsSpaceService",
+    "SportsSpaceVenueInactiveError",
+    "SportsSpaceVenueNotFoundError",
     "VenueNoChangesError",
     "VenueNotFoundError",
     "VenueService",
