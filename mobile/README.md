@@ -567,3 +567,201 @@ La verificacion manual confirmo:
 - Visualizacion en Android Emulator.
 - Error controlado cuando FastAPI no esta disponible.
 - Recuperacion mediante el boton `Reintentar`.
+
+## Autenticacion movil
+
+La aplicacion permite registrar una cuenta, iniciar sesion y conservar la sesion mediante un token JWT almacenado de forma segura.
+
+## Flujo principal
+
+```text
+Inicio de la aplicacion
+→ lectura del token almacenado
+→ validacion mediante GET /users/me
+→ Login o Home autenticada
+```
+
+Sin una sesion valida, la aplicacion muestra el formulario de inicio de sesion.
+
+Con una sesion valida, la aplicacion muestra la navegacion principal:
+
+```text
+Inicio
+Sedes
+Reservas
+Perfil
+```
+
+## Registro
+
+La pantalla de registro solicita:
+
+- Nombre.
+- Apellido.
+- Fecha de nacimiento.
+- Correo electronico.
+- Contrasena.
+- Confirmacion de contrasena.
+
+El formulario realiza validaciones locales y envia los datos mediante:
+
+```http
+POST /auth/register
+```
+
+Despues de registrar la cuenta, la aplicacion inicia sesion automaticamente.
+
+## Inicio de sesion
+
+La pantalla de login envia:
+
+```http
+POST /auth/login
+```
+
+Cuando las credenciales son validas:
+
+```text
+JWT recibido
+→ almacenamiento seguro
+→ GET /users/me
+→ Home autenticada
+```
+
+Los errores de credenciales, cuenta inactiva, validacion o conexion se muestran mediante mensajes visibles.
+
+## Almacenamiento de la sesion
+
+El token se guarda mediante:
+
+```text
+flutter_secure_storage
+```
+
+El token no se almacena dentro del codigo, preferencias comunes ni archivos de texto.
+
+Al iniciar la aplicacion, `AuthController` recupera el token y consulta:
+
+```http
+GET /users/me
+```
+
+Si el token vencio o no es valido:
+
+```text
+token eliminado
+→ regreso al Login
+```
+
+## Home y navegacion
+
+La aplicacion utiliza una barra inferior persistente con:
+
+```text
+Inicio
+Sedes
+Reservas
+Perfil
+```
+
+`AuthenticatedShell` utiliza `IndexedStack` para conservar el estado de las pantallas cuando el usuario cambia de seccion.
+
+El Home incluye:
+
+- Banner deportivo configurable.
+- Estado de proxima reserva.
+- Filtros deportivos preparados.
+- Acceso a sedes.
+- Acceso a reservas.
+- Acceso al perfil.
+
+## Perfil
+
+La seccion Perfil muestra:
+
+- Nombre.
+- Apellido.
+- Fecha de nacimiento.
+- Correo electronico.
+
+El usuario puede modificar:
+
+```text
+first_name
+last_name
+birth_date
+```
+
+El correo se muestra deshabilitado y no puede modificarse.
+
+Los cambios se envian mediante:
+
+```http
+PATCH /users/me
+```
+
+Solamente se envian los campos realmente modificados.
+
+## Cierre de sesion
+
+El cierre de sesion elimina el JWT almacenado localmente y regresa al Login.
+
+No se conserva informacion de autenticacion despues del logout.
+
+## Configuracion de la API
+
+Android Emulator utiliza:
+
+```text
+http://10.0.2.2:8000
+```
+
+La URL puede reemplazarse mediante:
+
+```powershell
+flutter run --dart-define=API_BASE_URL=https://api.example.com
+```
+
+## Imagenes
+
+Los recursos visuales se encuentran en:
+
+```text
+assets/images/
+```
+
+El banner principal utiliza:
+
+```text
+assets/images/home_banner.jpg
+```
+
+La imagen puede reemplazarse conservando el mismo nombre o modificando la ruta utilizada por `Image.asset`.
+
+## Verificacion realizada
+
+```powershell
+dart format lib test
+flutter analyze
+flutter test
+```
+
+Resultado actual:
+
+```text
+50 pruebas aprobadas
+Flutter Analyze sin problemas
+```
+
+Tambien se verifico manualmente en Android Emulator:
+
+- Registro.
+- Login.
+- Credenciales incorrectas.
+- Home autenticada.
+- Restauracion de sesion.
+- Navegacion inferior.
+- Consulta del perfil.
+- Edicion del perfil.
+- Persistencia en PostgreSQL.
+- Cierre de sesion.
