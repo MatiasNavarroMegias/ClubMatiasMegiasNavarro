@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../venues/data/services/venue_api_client.dart';
 import '../controllers/auth_controller.dart';
-import 'home_screen.dart';
+import 'authenticated_shell.dart';
 import 'login_screen.dart';
 import 'registration_screen.dart';
 
@@ -89,7 +89,7 @@ class _SessionGateState extends State<SessionGate> {
   Widget build(BuildContext context) {
     return switch (widget.authController.status) {
       AuthStatus.initializing => const _SessionLoadingView(),
-      AuthStatus.authenticated => HomeScreen(
+      AuthStatus.authenticated => AuthenticatedShell(
         authController: widget.authController,
         venueApiClient: widget.venueApiClient,
       ),
