@@ -4,6 +4,7 @@ import '../../../venues/data/services/venue_api_client.dart';
 import '../../../venues/presentation/screens/venue_list_screen.dart';
 import '../controllers/auth_controller.dart';
 import 'home_screen.dart';
+import 'profile_screen.dart';
 
 /// Secciones principales disponibles para el usuario autenticado.
 enum AuthenticatedSection { home, venues, reservations, profile }
@@ -73,7 +74,7 @@ class _AuthenticatedShellState extends State<AuthenticatedShell> {
           ),
           VenueListScreen(apiClient: widget.venueApiClient),
           const _ReservationsPlaceholder(),
-          _ProfilePlaceholder(authController: widget.authController),
+          ProfileScreen(authController: widget.authController),
         ],
       ),
 
@@ -213,165 +214,6 @@ class _ReservationsPlaceholder extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Pantalla temporal del perfil.
-///
-/// En el siguiente bloque sera reemplazada por el formulario real
-/// conectado con GET y PATCH /users/me.
-class _ProfilePlaceholder extends StatelessWidget {
-  const _ProfilePlaceholder({required this.authController});
-
-  final AuthController authController;
-
-  @override
-  Widget build(BuildContext context) {
-    final user = authController.currentUser;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        title: const Text('Mi perfil'),
-        backgroundColor: colorScheme.surface,
-        surfaceTintColor: Colors.transparent,
-      ),
-      body: ListView(
-        key: const Key('profile-placeholder'),
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-        children: [
-          Center(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: colorScheme.primary.withValues(alpha: 0.18),
-                shape: BoxShape.circle,
-              ),
-              child: SizedBox.square(
-                dimension: 94,
-                child: Center(
-                  child: Text(
-                    _profileInitials(user?.firstName, user?.lastName),
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: colorScheme.primary,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            user?.fullName ?? 'Usuario',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            user?.email ?? '',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyLarge
-                ?.copyWith(color: colorScheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 32),
-          Card(
-            elevation: 0,
-            color: colorScheme.surfaceContainer,
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                children: [
-                  _ProfileInformationRow(
-                    icon: Icons.badge_outlined,
-                    label: 'Nombre completo',
-                    value: user?.fullName ?? '-',
-                  ),
-                  const Divider(height: 28),
-                  _ProfileInformationRow(
-                    icon: Icons.email_outlined,
-                    label: 'Correo electronico',
-                    value: user?.email ?? '-',
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            key: const Key('profile-edit-pending'),
-            onPressed: null,
-            icon: const Icon(Icons.edit_outlined),
-            label: const Text('Editar perfil'),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            key: const Key('profile-logout'),
-            onPressed: authController.isLoading ? null : authController.logout,
-            icon: const Icon(Icons.logout),
-            label: const Text('Cerrar sesion'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Genera las iniciales visibles en el avatar.
-  String _profileInitials(String? firstName, String? lastName) {
-    final firstInitial = firstName == null || firstName.isEmpty
-        ? ''
-        : firstName[0];
-
-    final lastInitial = lastName == null || lastName.isEmpty ? '' : lastName[0];
-
-    final initials = '$firstInitial$lastInitial'.toUpperCase();
-
-    return initials.isEmpty ? '?' : initials;
-  }
-}
-
-/// Muestra un dato publico del perfil.
-class _ProfileInformationRow extends StatelessWidget {
-  const _ProfileInformationRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: colorScheme.primary),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelMedium
-                    ?.copyWith(color: colorScheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: Theme.of(context).textTheme.bodyLarge
-                    ?.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
