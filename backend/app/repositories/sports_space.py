@@ -18,7 +18,7 @@ class SportsSpaceRepository:
 
         Args:
             database_session: Sesion utilizada para consultar y
-                modificar informacion en PostgreSQL.
+                modificar informacion dentro de PostgreSQL.
         """
         self.database_session = database_session
 
@@ -27,19 +27,19 @@ class SportsSpaceRepository:
         *,
         venue_id: int | None = None,
         sport_type: str | None = None,
-        active_only: bool = False,
+        is_active: bool | None = None,
     ) -> list[SportsSpace]:
         """
         Devuelve los espacios que cumplen los filtros recibidos.
 
         Los filtros pueden utilizarse de forma individual o combinada.
-        El orden facilita mostrar los espacios agrupados por deporte
-        y numero dentro de la interfaz.
+        Cuando is_active es None, se incluyen espacios activos e
+        inactivos.
 
         Args:
             venue_id: Sede opcional utilizada como filtro.
             sport_type: Tipo deportivo opcional ya normalizado.
-            active_only: Indica si deben excluirse espacios inactivos.
+            is_active: Estado opcional del espacio.
 
         Returns:
             Lista de espacios ordenada por deporte, numero y nombre.
@@ -56,9 +56,11 @@ class SportsSpaceRepository:
                 SportsSpace.sport_type == sport_type,
             )
 
-        if active_only:
+        # La comparacion contra None es necesaria porque False es un
+        # valor valido y debe generar un filtro de espacios inactivos.
+        if is_active is not None:
             statement = statement.where(
-                SportsSpace.is_active.is_(True),
+                SportsSpace.is_active.is_(is_active),
             )
 
         statement = statement.order_by(
@@ -100,7 +102,7 @@ class SportsSpaceRepository:
         Busca un espacio mediante su identificacion dentro de la sede.
 
         Esta consulta permite detectar duplicados antes de intentar
-        persistir un registro que violaria la restriccion unica.
+        guardar un registro que violaria la restriccion unica.
 
         Args:
             venue_id: Identificador de la sede.

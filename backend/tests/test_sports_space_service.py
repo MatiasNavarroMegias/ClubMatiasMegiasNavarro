@@ -101,7 +101,7 @@ def test_list_sports_spaces_returns_repository_result() -> None:
     repository.list_all.assert_called_once_with(
         venue_id=None,
         sport_type=None,
-        active_only=False,
+        is_active=None,
     )
 
 
@@ -115,14 +115,14 @@ def test_list_sports_spaces_normalizes_and_combines_filters() -> None:
     spaces = service.list_sports_spaces(
         venue_id=7,
         sport_type=" futbol ",
-        active_only=True,
+        is_active=True,
     )
 
     assert spaces == []
     repository.list_all.assert_called_once_with(
         venue_id=7,
         sport_type="Futbol",
-        active_only=True,
+        is_active=True,
     )
 
 
@@ -485,3 +485,23 @@ def test_update_sports_space_changes_active_status() -> None:
     assert result.is_active is False
     repository.get_by_identity.assert_not_called()
     repository.save.assert_called_once_with(existing_space)
+
+
+def test_list_sports_spaces_forwards_inactive_filter() -> None:
+    """
+    Verifica que False no sea confundido con la ausencia del filtro.
+    """
+    service, repository, _ = create_service()
+    repository.list_all.return_value = []
+
+    result = service.list_sports_spaces(
+        is_active=False,
+    )
+
+    assert result == []
+
+    repository.list_all.assert_called_once_with(
+        venue_id=None,
+        sport_type=None,
+        is_active=False,
+    )

@@ -136,7 +136,7 @@ def test_list_sports_spaces_returns_spaces(
     service.list_sports_spaces.assert_called_once_with(
         venue_id=None,
         sport_type=None,
-        active_only=False,
+        is_active=None,
     )
 
 
@@ -154,7 +154,7 @@ def test_list_sports_spaces_forwards_filters(
         params={
             "venue_id": 7,
             "sport_type": "futbol",
-            "active_only": True,
+            "is_active": True,
         },
     )
 
@@ -164,7 +164,7 @@ def test_list_sports_spaces_forwards_filters(
     service.list_sports_spaces.assert_called_once_with(
         venue_id=7,
         sport_type="futbol",
-        active_only=True,
+        is_active=True,
     )
 
 
@@ -504,3 +504,29 @@ def test_update_sports_space_rejects_venue_change(
 
     assert response.status_code == 422
     service.update_sports_space.assert_not_called()
+
+
+def test_list_sports_spaces_forwards_inactive_filter(
+    sports_space_api: tuple[TestClient, MagicMock],
+) -> None:
+    """
+    Verifica que is_active=false llegue al servicio como False.
+    """
+    client, service = sports_space_api
+    service.list_sports_spaces.return_value = []
+
+    response = client.get(
+        "/sports-spaces",
+        params={
+            "is_active": False,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+    service.list_sports_spaces.assert_called_once_with(
+        venue_id=None,
+        sport_type=None,
+        is_active=False,
+    )

@@ -130,7 +130,7 @@ def test_list_all_filters_by_sport_type() -> None:
 
 def test_list_all_filters_only_active_spaces() -> None:
     """
-    Verifica que active_only excluya espacios inactivos.
+    Verifica que is_active excluya espacios inactivos.
     """
     database_session = MagicMock(spec=Session)
     database_session.scalars.return_value.all.return_value = []
@@ -138,7 +138,7 @@ def test_list_all_filters_only_active_spaces() -> None:
     repository = SportsSpaceRepository(database_session)
 
     repository.list_all(
-        active_only=True,
+        is_active=True,
     )
 
     statement = database_session.scalars.call_args.args[0]
@@ -159,7 +159,7 @@ def test_list_all_combines_received_filters() -> None:
     repository.list_all(
         venue_id=7,
         sport_type="Futbol",
-        active_only=True,
+        is_active=True,
     )
 
     statement = database_session.scalars.call_args.args[0]
@@ -326,3 +326,25 @@ def test_save_commits_and_refreshes_existing_space() -> None:
         sports_space,
     )
     database_session.add.assert_not_called()
+
+
+def test_list_all_filters_inactive_spaces() -> None:
+    """
+    Verifica que is_active=False filtre espacios inactivos.
+
+    La comparacion explicita contra None evita confundir False con
+    la ausencia del filtro.
+    """
+    database_session = MagicMock(spec=Session)
+    database_session.scalars.return_value.all.return_value = []
+
+    repository = SportsSpaceRepository(database_session)
+
+    repository.list_all(
+        is_active=False,
+    )
+
+    statement = database_session.scalars.call_args.args[0]
+    compiled_statement = str(statement)
+
+    assert "sports_spaces.is_active IS false" in compiled_statement

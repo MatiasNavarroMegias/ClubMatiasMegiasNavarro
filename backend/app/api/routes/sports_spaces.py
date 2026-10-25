@@ -45,24 +45,33 @@ def list_sports_spaces(
             description="Filtra los espacios por tipo de deporte.",
         ),
     ] = None,
-    active_only: Annotated[
-        bool,
+    is_active: Annotated[
+        bool | None,
         Query(
-            description="Incluye solamente espacios activos.",
+            description=(
+                "Filtra por estado. True devuelve activos, "
+                "False devuelve inactivos y sin valor devuelve todos."
+            ),
         ),
-    ] = False,
+    ] = None,
 ) -> list[SportsSpaceResponse]:
     """
     Devuelve los espacios deportivos que cumplen los filtros.
 
     Los filtros por sede, deporte y estado pueden utilizarse de forma
     individual o combinada.
+
+    El filtro is_active utiliza tres estados:
+
+    - True: devuelve solamente espacios activos.
+    - False: devuelve solamente espacios inactivos.
+    - None: devuelve activos e inactivos.
     """
     try:
         sports_spaces = service.list_sports_spaces(
             venue_id=venue_id,
             sport_type=sport_type,
-            active_only=active_only,
+            is_active=is_active,
         )
     except ValueError as error:
         raise HTTPException(

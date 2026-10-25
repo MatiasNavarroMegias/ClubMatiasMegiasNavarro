@@ -70,20 +70,19 @@ class SportsSpaceService:
         *,
         venue_id: int | None = None,
         sport_type: str | None = None,
-        active_only: bool = False,
+        is_active: bool | None = None,
     ) -> list[SportsSpace]:
         """
         Lista los espacios que cumplen los filtros recibidos.
 
-        El tipo deportivo se normaliza antes de enviarlo al repositorio
-        para mantener consultas consistentes.
-
-        Los filtros pueden utilizarse individualmente o combinarse.
+        El tipo deportivo se normaliza antes de enviarlo al repositorio.
+        El estado permite filtrar espacios activos o inactivos. Cuando
+        is_active es None, se incluyen ambos estados.
 
         Args:
             venue_id: Identificador opcional de la sede.
             sport_type: Tipo deportivo opcional.
-            active_only: Indica si deben excluirse espacios inactivos.
+            is_active: Estado opcional del espacio.
 
         Returns:
             Lista de espacios ordenada por el repositorio.
@@ -98,7 +97,7 @@ class SportsSpaceService:
         return self.repository.list_all(
             venue_id=venue_id,
             sport_type=normalized_sport_type,
-            active_only=active_only,
+            is_active=is_active,
         )
 
     def get_sports_space(
@@ -135,21 +134,16 @@ class SportsSpaceService:
         """
         Crea un espacio deportivo dentro de una sede activa.
 
-        Antes de construir el modelo, el servicio verifica que la sede
-        exista, permanezca activa y no tenga otro espacio con el mismo
-        deporte y numero.
-
         Args:
             sports_space_data: Datos validados del nuevo espacio.
 
         Returns:
-            Espacio persistido con los valores generados por PostgreSQL.
+            Espacio persistido con los valores generados.
 
         Raises:
             SportsSpaceVenueNotFoundError: Cuando la sede no existe.
             SportsSpaceVenueInactiveError: Cuando la sede esta inactiva.
-            SportsSpaceAlreadyExistsError: Cuando ya existe la misma
-                combinacion de sede, deporte y numero.
+            SportsSpaceAlreadyExistsError: Cuando la identidad ya existe.
         """
         venue = self.venue_repository.get_by_id(
             sports_space_data.venue_id,
@@ -194,9 +188,8 @@ class SportsSpaceService:
         """
         Modifica parcialmente un espacio deportivo existente.
 
-        La sede no puede modificarse. Si cambia el deporte o el numero,
-        se comprueba que la identidad final no pertenezca a otro
-        espacio dentro de la misma sede.
+        Si cambia el deporte o el numero, se comprueba que la identidad
+        final no pertenezca a otro espacio de la misma sede.
 
         Args:
             sports_space_id: Identificador del espacio.
@@ -207,10 +200,8 @@ class SportsSpaceService:
 
         Raises:
             SportsSpaceNotFoundError: Cuando el espacio no existe.
-            SportsSpaceNoChangesError: Cuando no se recibieron campos
-                o los valores coinciden con los datos actuales.
-            SportsSpaceAlreadyExistsError: Cuando la identidad final
-                pertenece a otro espacio.
+            SportsSpaceNoChangesError: Cuando no existen cambios reales.
+            SportsSpaceAlreadyExistsError: Cuando la identidad ya existe.
         """
         sports_space = self.get_sports_space(
             sports_space_id,
