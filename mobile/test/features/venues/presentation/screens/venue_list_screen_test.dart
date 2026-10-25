@@ -77,7 +77,7 @@ void main() {
     await tester.pumpWidget(createTestApp(apiClient));
     await tester.pumpAndSettle();
 
-    expect(find.text('Gestionar sedes'), findsOneWidget);
+    expect(find.text('Seleccionar sede'), findsOneWidget);
     expect(find.byKey(const Key('venue-list')), findsOneWidget);
     expect(find.text('Sede Moron'), findsOneWidget);
     expect(find.text('Sede Ramos Mejia'), findsOneWidget);
@@ -85,7 +85,8 @@ void main() {
     expect(find.text('08:00 - 23:00'), findsNWidgets(2));
     expect(find.text('Activa'), findsOneWidget);
     expect(find.text('Inactiva'), findsOneWidget);
-    expect(find.text('Ver detalle'), findsNWidgets(2));
+    expect(find.text('Ver espacios'), findsOneWidget);
+    expect(find.text('Sede no disponible'), findsOneWidget);
     expect(find.byKey(const ValueKey('venue-card-1')), findsOneWidget);
     expect(find.byKey(const ValueKey('venue-card-2')), findsOneWidget);
   });
