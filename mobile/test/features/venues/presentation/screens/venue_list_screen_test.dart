@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:club_matias_megias_navarro/features/sports_spaces/data/services/sports_space_api_client.dart';
 
 void main() {
   const baseUrl = 'http://example.test';
@@ -172,5 +173,130 @@ void main() {
     expect(find.byKey(const Key('venue-list')), findsOneWidget);
     expect(find.text('Sede Recuperada'), findsOneWidget);
     expect(find.byKey(const Key('venue-list-error')), findsNothing);
+  });
+
+  testWidgets('abre los espacios deportivos de una sede activa', (
+    tester,
+  ) async {
+    final venueHttpClient = MockClient((request) async {
+      expect(request.method, 'GET');
+      expect(request.url.toString(), '$baseUrl/venues');
+
+      return http.Response(
+        jsonEncode([venueJson(id: 1, name: 'Sede Moron', isActive: true)]),
+        200,
+      );
+    });
+
+    final sportsSpaceHttpClient = MockClient((request) async {
+      expect(request.method, 'GET');
+      expect(request.url.path, '/sports-spaces');
+      expect(request.url.queryParameters, {
+        'venue_id': '1',
+        'is_active': 'true',
+      });
+
+      return http.Response(
+        jsonEncode([
+          {
+            'id': 10,
+            'venue_id': 1,
+            'name': 'Cancha de Futbol 1',
+            'sport_type': 'Futbol',
+            'space_number': 1,
+            'is_active': true,
+            'created_at': '2026-10-25T12:00:00Z',
+            'updated_at': '2026-10-25T13:00:00Z',
+          },
+        ]),
+        200,
+      );
+    });
+
+    final venueApiClient = VenueApiClient(
+      httpClient: venueHttpClient,
+      baseUrl: baseUrl,
+    );
+
+    final sportsSpaceApiClient = SportsSpaceApiClient(
+      httpClient: sportsSpaceHttpClient,
+      baseUrl: baseUrl,
+    );
+
+    addTearDown(venueApiClient.close);
+    addTearDown(sportsSpaceApiClient.close);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: VenueListScreen(
+          apiClient: venueApiClient,
+          sportsSpaceApiClient: sportsSpaceApiClient,
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('venue-card-1')), findsOneWidget);
+    expect(find.text('Ver espacios'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('venue-card-1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Espacios deportivos'), findsOneWidget);
+    expect(find.text('Sede Moron'), findsOneWidget);
+    expect(find.text('Cancha de Futbol 1'), findsOneWidget);
+    expect(find.byKey(const ValueKey('sports-space-card-10')), findsOneWidget);
+  });
+
+  testWidgets('no abre espacios al tocar una sede inactiva', (tester) async {
+    var sportsSpaceRequestCount = 0;
+
+    final venueHttpClient = MockClient((request) async {
+      return http.Response(
+        jsonEncode([venueJson(id: 2, name: 'Sede Inactiva', isActive: false)]),
+        200,
+      );
+    });
+
+    final sportsSpaceHttpClient = MockClient((request) async {
+      sportsSpaceRequestCount++;
+
+      return http.Response(jsonEncode(<Map<String, dynamic>>[]), 200);
+    });
+
+    final venueApiClient = VenueApiClient(
+      httpClient: venueHttpClient,
+      baseUrl: baseUrl,
+    );
+
+    final sportsSpaceApiClient = SportsSpaceApiClient(
+      httpClient: sportsSpaceHttpClient,
+      baseUrl: baseUrl,
+    );
+
+    addTearDown(venueApiClient.close);
+    addTearDown(sportsSpaceApiClient.close);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: VenueListScreen(
+          apiClient: venueApiClient,
+          sportsSpaceApiClient: sportsSpaceApiClient,
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sede Inactiva'), findsOneWidget);
+    expect(find.text('Sede no disponible'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('venue-card-2')));
+    await tester.pumpAndSettle();
+
+    expect(sportsSpaceRequestCount, 0);
+    expect(find.text('Seleccionar sede'), findsOneWidget);
+    expect(find.text('Espacios deportivos'), findsNothing);
   });
 }
