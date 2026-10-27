@@ -17,6 +17,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 if TYPE_CHECKING:
+    from app.models.reservation import Reservation
     from app.models.venue import Venue
 
 
@@ -114,4 +115,12 @@ class SportsSpace(Base):
     # Sede asociada al espacio deportivo.
     venue: Mapped[Venue] = relationship(
         back_populates="sports_spaces",
+    )
+
+    # Reservas asociadas al espacio deportivo.
+    #
+    # La relacion permite consultar horarios ocupados y construir el
+    # historial sin almacenar disponibilidad estatica.
+    reservations: Mapped[list[Reservation]] = relationship(
+        back_populates="sports_space",
     )

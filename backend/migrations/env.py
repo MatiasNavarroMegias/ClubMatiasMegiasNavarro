@@ -10,7 +10,7 @@ from app.core.database import Base
 #
 # Las clases no se utilizan directamente en este archivo, pero sus
 # importaciones permiten que Alembic detecte las tablas automaticamente.
-from app.models import User, Venue  # noqa: F401
+from app.models import Reservation, SportsSpace, User, Venue  # noqa: F401
 
 # Obtiene el objeto de configuracion creado por Alembic.
 #

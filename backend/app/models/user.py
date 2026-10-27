@@ -1,9 +1,15 @@
+from __future__ import annotations
+
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Date, DateTime, String, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.reservation import Reservation
 
 
 class User(Base):
@@ -78,4 +84,12 @@ class User(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+    # Reservas creadas por el usuario.
+    #
+    # No se configura eliminacion en cascada porque el historial debe
+    # conservarse incluso si la cuenta queda inactiva.
+    reservations: Mapped[list[Reservation]] = relationship(
+        back_populates="user",
     )
