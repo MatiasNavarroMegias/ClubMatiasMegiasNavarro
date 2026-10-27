@@ -12,8 +12,16 @@ from app.core.security import (
     PasswordHasher,
 )
 from app.models import User
-from app.repositories import UserRepository, VenueRepository
-from app.services import AuthService, VenueService
+from app.repositories import (
+    SportsSpaceRepository,
+    UserRepository,
+    VenueRepository,
+)
+from app.services import (
+    AuthService,
+    SportsSpaceService,
+    VenueService,
+)
 
 # Tipo reutilizable que representa una sesion administrada por FastAPI.
 DatabaseSession = Annotated[Session, Depends(get_db_session)]
@@ -146,6 +154,34 @@ def get_venue_service(
     return VenueService(repository)
 
 
+def get_sports_space_service(
+    database_session: DatabaseSession,
+) -> SportsSpaceService:
+    """
+    Construye el servicio de espacios deportivos.
+
+    La sesion actual se comparte entre los repositorios de espacios
+    y sedes para mantener una unica transaccion por solicitud.
+
+    Args:
+        database_session: Sesion asociada a la solicitud HTTP.
+
+    Returns:
+        Servicio preparado para administrar espacios deportivos.
+    """
+    repository = SportsSpaceRepository(
+        database_session,
+    )
+    venue_repository = VenueRepository(
+        database_session,
+    )
+
+    return SportsSpaceService(
+        repository=repository,
+        venue_repository=venue_repository,
+    )
+
+
 # Tipo reutilizable para inyectar AuthService en los endpoints.
 AuthServiceDependency = Annotated[
     AuthService,
@@ -162,4 +198,10 @@ CurrentUser = Annotated[
 VenueServiceDependency = Annotated[
     VenueService,
     Depends(get_venue_service),
+]
+
+# Tipo reutilizable para inyectar SportsSpaceService.
+SportsSpaceServiceDependency = Annotated[
+    SportsSpaceService,
+    Depends(get_sports_space_service),
 ]

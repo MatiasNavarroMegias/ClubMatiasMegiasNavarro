@@ -2085,3 +2085,182 @@ El usuario autenticado puede consultar y editar su perfil mediante:
 ```http
 GET /users/me
 PATCH /users/me
+
+## Espacios deportivos
+
+Los espacios deportivos representan las canchas o instalaciones
+disponibles dentro de una sede.
+
+Cada espacio pertenece obligatoriamente a una sede y contiene:
+
+- Identificador.
+- Identificador de la sede.
+- Nombre.
+- Tipo de deporte.
+- Numero dentro de la sede y el deporte.
+- Estado activo o inactivo.
+- Fechas de auditoria.
+
+## Identidad de un espacio
+
+La combinacion siguiente es unica:
+
+```text
+venue_id + sport_type + space_number
+```
+
+Por ejemplo, una sede puede contener:
+
+```text
+Futbol 1
+Futbol 2
+Tenis 1
+Tenis 2
+```
+
+pero no puede registrar dos veces:
+
+```text
+Sede 1 + Futbol + numero 1
+```
+
+PostgreSQL tambien verifica que:
+
+```text
+space_number > 0
+```
+
+## Disponibilidad
+
+La disponibilidad no se almacena como una columna booleana dentro de
+`sports_spaces`.
+
+Se calculara posteriormente utilizando:
+
+- Horario de funcionamiento de la sede.
+- Fecha seleccionada.
+- Hora actual.
+- Reservas existentes.
+- Estado de la sede.
+- Estado del espacio deportivo.
+
+Esta decision evita mantener un valor de disponibilidad desactualizado.
+
+## Endpoints
+
+### Listar espacios
+
+```http
+GET /sports-spaces
+```
+
+Filtros opcionales:
+
+```text
+venue_id
+sport_type
+is_active
+```
+
+Ejemplos:
+
+```http
+GET /sports-spaces?venue_id=1
+GET /sports-spaces?sport_type=Futbol
+GET /sports-spaces?is_active=true
+GET /sports-spaces?is_active=false
+GET /sports-spaces?venue_id=1&sport_type=Futbol&is_active=true
+```
+
+El filtro `is_active` posee tres estados:
+
+```text
+sin parametro    → devuelve activos e inactivos
+is_active=true   → devuelve solamente activos
+is_active=false  → devuelve solamente inactivos
+```
+
+### Consultar un espacio
+
+```http
+GET /sports-spaces/{sports_space_id}
+```
+
+### Crear un espacio
+
+```http
+POST /sports-spaces
+```
+
+Ejemplo:
+
+```json
+{
+  "venue_id": 1,
+  "name": "Cancha de Futbol 1",
+  "sport_type": "Futbol",
+  "space_number": 1
+}
+```
+
+Solo se pueden crear espacios dentro de sedes existentes y activas.
+
+### Actualizar un espacio
+
+```http
+PATCH /sports-spaces/{sports_space_id}
+```
+
+Ejemplo:
+
+```json
+{
+  "name": "Cancha Principal",
+  "is_active": false
+}
+```
+
+La sede de un espacio no puede modificarse. Esta regla evita trasladar
+un espacio que pueda tener reservas o historial asociado.
+
+## Codigos de respuesta
+
+```text
+200 → consulta o actualizacion correcta
+201 → espacio creado
+400 → solicitud PATCH vacia o sin cambios
+404 → sede o espacio inexistente
+409 → sede inactiva o identidad duplicada
+422 → datos o filtros invalidos
+```
+
+## Migracion
+
+La tabla se crea mediante la migracion:
+
+```text
+003a7c1c837a_create_sports_spaces_table.py
+```
+
+La migracion agrega:
+
+- Tabla `sports_spaces`.
+- Clave foranea hacia `venues.id`.
+- Restriccion `ON DELETE RESTRICT`.
+- Indices por `venue_id` y `sport_type`.
+- Restriccion de numero positivo.
+- Restriccion unica por sede, deporte y numero.
+
+## Verificacion del backend
+
+```powershell
+python -m ruff check .
+python -m ruff format --check .
+python -m pytest -q
+```
+
+Resultado actual:
+
+```text
+220 pruebas aprobadas
+```

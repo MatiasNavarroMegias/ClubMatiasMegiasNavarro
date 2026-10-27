@@ -1,9 +1,15 @@
+from __future__ import annotations
+
 from datetime import datetime, time
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, String, Time, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.sports_space import SportsSpace
 
 
 class Venue(Base):
@@ -77,4 +83,12 @@ class Venue(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+    # Espacios deportivos pertenecientes a la sede.
+    #
+    # La eliminacion en cascada no se configura porque las reservas
+    # futuras necesitaran conservar referencias historicas.
+    sports_spaces: Mapped[list[SportsSpace]] = relationship(
+        back_populates="venue",
     )

@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 
-from app.api.routes import auth_router, users_router, venues_router
+from app.api.routes import (
+    auth_router,
+    sports_spaces_router,
+    users_router,
+    venues_router,
+)
 
 # Esta instancia representa la aplicacion web principal.
 # FastAPI utiliza esta configuracion para registrar las rutas
@@ -16,6 +21,7 @@ app = FastAPI(
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(venues_router)
+app.include_router(sports_spaces_router)
 
 
 @app.get("/health", tags=["Health"])

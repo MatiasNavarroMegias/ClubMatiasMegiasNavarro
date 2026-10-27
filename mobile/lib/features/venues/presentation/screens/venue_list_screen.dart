@@ -1,20 +1,27 @@
 import 'package:flutter/material.dart';
 
+import '../../../sports_spaces/data/services/sports_space_api_client.dart';
+import '../../../sports_spaces/presentation/screens/sports_space_list_screen.dart';
 import '../../data/models/venue.dart';
 import '../../data/services/venue_api_client.dart';
 
 /// Muestra las sedes obtenidas desde FastAPI.
 ///
 /// La pantalla administra los estados de carga, contenido, lista vacia
-/// y error de conexion. VenueApiClient puede reemplazarse durante las
-/// pruebas para evitar solicitudes HTTP reales.
+/// y error. Al seleccionar una sede, muestra sus espacios deportivos.
 class VenueListScreen extends StatefulWidget {
-  const VenueListScreen({super.key, this.apiClient});
+  const VenueListScreen({super.key, this.apiClient, this.sportsSpaceApiClient});
 
   /// Cliente opcional utilizado para obtener las sedes.
   ///
-  /// Permite reemplazar el cliente real durante las pruebas del widget.
+  /// Permite reemplazar el cliente real durante las pruebas.
   final VenueApiClient? apiClient;
+
+  /// Cliente opcional utilizado para obtener espacios deportivos.
+  ///
+  /// Si no se recibe, SportsSpaceListScreen construye su propio
+  /// cliente cuando se abre una sede.
+  final SportsSpaceApiClient? sportsSpaceApiClient;
 
   @override
   State<VenueListScreen> createState() => _VenueListScreenState();
@@ -47,7 +54,7 @@ class _VenueListScreenState extends State<VenueListScreen> {
     super.dispose();
   }
 
-  /// Consulta las sedes y actualiza el estado visible de la pantalla.
+  /// Consulta las sedes y actualiza el estado visible.
   Future<void> _loadVenues() async {
     setState(() {
       _isLoading = true;
@@ -86,10 +93,31 @@ class _VenueListScreenState extends State<VenueListScreen> {
     }
   }
 
+  /// Abre los espacios deportivos activos de una sede.
+  void _openSportsSpaces(Venue venue) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) {
+          return SportsSpaceListScreen(
+            venue: venue,
+            apiClient: widget.sportsSpaceApiClient,
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Gestionar sedes')),
+      backgroundColor: colorScheme.surface,
+      appBar: AppBar(
+        title: const Text('Seleccionar sede'),
+        backgroundColor: colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+      ),
       body: _buildBody(),
     );
   }
@@ -116,11 +144,22 @@ class _VenueListScreenState extends State<VenueListScreen> {
       onRefresh: _loadVenues,
       child: ListView.separated(
         key: const Key('venue-list'),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         itemCount: _venues.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        separatorBuilder: (context, index) {
+          return const SizedBox(height: 12);
+        },
         itemBuilder: (context, index) {
-          return _VenueCard(venue: _venues[index]);
+          final venue = _venues[index];
+
+          return _VenueCard(
+            venue: venue,
+            onTap: venue.isActive
+                ? () {
+                    _openSportsSpaces(venue);
+                  }
+                : null,
+          );
         },
       ),
     );
@@ -129,9 +168,10 @@ class _VenueListScreenState extends State<VenueListScreen> {
 
 /// Muestra una sede dentro del listado.
 class _VenueCard extends StatelessWidget {
-  const _VenueCard({required this.venue});
+  const _VenueCard({required this.venue, required this.onTap});
 
   final Venue venue;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -139,53 +179,77 @@ class _VenueCard extends StatelessWidget {
 
     return Card(
       key: ValueKey('venue-card-${venue.id}'),
+      elevation: 0,
+      color: colorScheme.surfaceContainer,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () {
-          // La navegacion a Editar sede se agregara en la siguiente etapa.
-        },
+        onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: SizedBox.square(
+                      dimension: 54,
+                      child: Icon(
+                        Icons.location_city_outlined,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
                   Expanded(
-                    child: Text(
-                      venue.name,
-                      style: Theme.of(context).textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          venue.name,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 6),
+                        _VenueInformationRow(
+                          icon: Icons.location_on_outlined,
+                          text: venue.address,
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 12),
                   _VenueStatusBadge(isActive: venue.isActive),
                 ],
               ),
-              const SizedBox(height: 8),
-              _VenueInformationRow(
-                icon: Icons.location_on_outlined,
-                text: venue.address,
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 14),
               _VenueInformationRow(
                 icon: Icons.schedule_outlined,
                 text:
                     '${_formatTime(venue.openingTime)}'
                     ' - ${_formatTime(venue.closingTime)}',
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Text(
-                    'Ver detalle',
-                    style: Theme.of(context).textTheme.labelLarge
-                        ?.copyWith(color: colorScheme.primary),
+                    venue.isActive ? 'Ver espacios' : 'Sede no disponible',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: venue.isActive
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.chevron_right, color: colorScheme.primary),
+                  if (venue.isActive) ...[
+                    const SizedBox(width: 4),
+                    Icon(Icons.chevron_right, color: colorScheme.primary),
+                  ],
                 ],
               ),
             ],
@@ -241,9 +305,11 @@ class _VenueStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     final backgroundColor = isActive
         ? colorScheme.primaryContainer
         : colorScheme.surfaceContainerHighest;
+
     final foregroundColor = isActive
         ? colorScheme.onPrimaryContainer
         : colorScheme.onSurfaceVariant;
@@ -291,7 +357,8 @@ class _VenueEmptyView extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Las sedes registradas apareceran en esta pantalla.',
+              'Las sedes registradas apareceran '
+              'en esta pantalla.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -302,7 +369,7 @@ class _VenueEmptyView extends StatelessWidget {
   }
 }
 
-/// Muestra un error y permite volver a intentar la consulta.
+/// Muestra un error y permite repetir la consulta.
 class _VenueErrorView extends StatelessWidget {
   const _VenueErrorView({required this.message, required this.onRetry});
 
