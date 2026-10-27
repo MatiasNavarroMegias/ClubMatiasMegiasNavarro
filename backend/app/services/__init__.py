@@ -13,6 +13,16 @@ from app.services.availability import (
     AvailabilitySportsSpaceNotFoundError,
     AvailabilityVenueInactiveError,
 )
+from app.services.reservation import (
+    ReservationInvalidStartTimeError,
+    ReservationOutsideVenueHoursError,
+    ReservationService,
+    ReservationSportsSpaceInactiveError,
+    ReservationSportsSpaceNotFoundError,
+    ReservationStartInPastError,
+    ReservationTimeConflictError,
+    ReservationVenueInactiveError,
+)
 from app.services.sports_space import (
     SportsSpaceAlreadyExistsError,
     SportsSpaceNoChangesError,
@@ -39,6 +49,14 @@ __all__ = [
     "InactiveUserError",
     "InvalidCredentialsError",
     "InvalidVenueHoursError",
+    "ReservationInvalidStartTimeError",
+    "ReservationOutsideVenueHoursError",
+    "ReservationService",
+    "ReservationSportsSpaceInactiveError",
+    "ReservationSportsSpaceNotFoundError",
+    "ReservationStartInPastError",
+    "ReservationTimeConflictError",
+    "ReservationVenueInactiveError",
     "SportsSpaceAlreadyExistsError",
     "SportsSpaceNoChangesError",
     "SportsSpaceNotFoundError",
