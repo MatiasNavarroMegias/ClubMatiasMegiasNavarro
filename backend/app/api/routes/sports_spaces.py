@@ -1,14 +1,23 @@
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.api.dependencies import SportsSpaceServiceDependency
+from app.api.dependencies import (
+    AvailabilityServiceDependency,
+    SportsSpaceServiceDependency,
+)
 from app.schemas import (
+    AvailabilitySlotResponse,
     SportsSpaceCreate,
     SportsSpaceResponse,
     SportsSpaceUpdate,
 )
 from app.services import (
+    AvailabilityDateInPastError,
+    AvailabilitySportsSpaceInactiveError,
+    AvailabilitySportsSpaceNotFoundError,
+    AvailabilityVenueInactiveError,
     SportsSpaceAlreadyExistsError,
     SportsSpaceNoChangesError,
     SportsSpaceNotFoundError,
@@ -80,6 +89,59 @@ def list_sports_spaces(
         ) from error
 
     return [SportsSpaceResponse.model_validate(sports_space) for sports_space in sports_spaces]
+
+
+@router.get(
+    "/{sports_space_id}/availability",
+    response_model=list[AvailabilitySlotResponse],
+    status_code=status.HTTP_200_OK,
+)
+def list_sports_space_availability(
+    sports_space_id: int,
+    service: AvailabilityServiceDependency,
+    selected_date: Annotated[
+        date,
+        Query(
+            alias="date",
+            description=("Fecha local utilizada para calcular los turnos disponibles."),
+        ),
+    ],
+) -> list[AvailabilitySlotResponse]:
+    """
+    Devuelve los turnos disponibles de un espacio para una fecha.
+
+    Cada turno comienza en una hora completa y posee una duracion de
+    una hora. Los horarios pasados y ocupados quedan excluidos.
+
+    Raises:
+        HTTPException: Con codigo 404 cuando el espacio no existe.
+        HTTPException: Con codigo 409 cuando el espacio o la sede se
+            encuentran inactivos.
+        HTTPException: Con codigo 422 cuando la fecha es pasada.
+    """
+    try:
+        return service.list_available_slots(
+            sports_space_id=sports_space_id,
+            selected_date=selected_date,
+        )
+    except AvailabilitySportsSpaceNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except (
+        AvailabilitySportsSpaceInactiveError,
+        AvailabilityVenueInactiveError,
+    ) as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    except AvailabilityDateInPastError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(error),
+        ) from error
 
 
 @router.get(

@@ -1,4 +1,5 @@
 from typing import Annotated
+from zoneinfo import ZoneInfo
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -13,12 +14,14 @@ from app.core.security import (
 )
 from app.models import User
 from app.repositories import (
+    ReservationRepository,
     SportsSpaceRepository,
     UserRepository,
     VenueRepository,
 )
 from app.services import (
     AuthService,
+    AvailabilityService,
     SportsSpaceService,
     VenueService,
 )
@@ -182,6 +185,37 @@ def get_sports_space_service(
     )
 
 
+def get_availability_service(
+    database_session: DatabaseSession,
+) -> AvailabilityService:
+    """
+    Construye el servicio de disponibilidad para una solicitud HTTP.
+
+    La misma sesion de SQLAlchemy se comparte entre el repositorio de
+    espacios deportivos y el repositorio de reservas.
+
+    Args:
+        database_session: Sesion asociada a la solicitud actual.
+
+    Returns:
+        Servicio preparado para calcular turnos disponibles.
+    """
+    settings = get_settings()
+
+    sports_space_repository = SportsSpaceRepository(
+        database_session,
+    )
+    reservation_repository = ReservationRepository(
+        database_session,
+    )
+
+    return AvailabilityService(
+        sports_space_repository=sports_space_repository,
+        reservation_repository=reservation_repository,
+        timezone=ZoneInfo(settings.app_timezone),
+    )
+
+
 # Tipo reutilizable para inyectar AuthService en los endpoints.
 AuthServiceDependency = Annotated[
     AuthService,
@@ -204,4 +238,10 @@ VenueServiceDependency = Annotated[
 SportsSpaceServiceDependency = Annotated[
     SportsSpaceService,
     Depends(get_sports_space_service),
+]
+
+# Tipo reutilizable para inyectar AvailabilityService.
+AvailabilityServiceDependency = Annotated[
+    AvailabilityService,
+    Depends(get_availability_service),
 ]
