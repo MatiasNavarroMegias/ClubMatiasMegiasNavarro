@@ -765,3 +765,110 @@ Tambien se verifico manualmente en Android Emulator:
 - Edicion del perfil.
 - Persistencia en PostgreSQL.
 - Cierre de sesion.
+
+## Seleccion de espacios deportivos
+
+La aplicacion permite seleccionar una sede activa y consultar sus
+espacios deportivos.
+
+El flujo movil es:
+
+```text
+Inicio
+→ Sedes
+→ seleccionar sede activa
+→ consultar espacios activos
+→ filtrar por deporte
+→ seleccionar espacio
+```
+
+Flutter consulta:
+
+```http
+GET /sports-spaces?venue_id={venue_id}&is_active=true
+```
+
+Una sede inactiva:
+
+- Muestra el texto `Sede no disponible`.
+- No permite navegar.
+- No realiza solicitudes de espacios deportivos.
+
+## Pantalla de espacios
+
+La pantalla muestra:
+
+- Nombre de la sede.
+- Direccion.
+- Espacios deportivos activos.
+- Tipo de deporte.
+- Numero del espacio.
+- Filtros deportivos generados dinamicamente.
+
+Los filtros se aplican localmente luego de obtener los espacios, por lo
+que no se realiza una nueva solicitud HTTP cada vez que el usuario
+selecciona un deporte.
+
+La pantalla contempla:
+
+- Estado de carga.
+- Listado.
+- Estado vacio.
+- Error de API.
+- Reintento.
+- Seleccion de un espacio.
+
+La seleccion queda preparada para continuar hacia:
+
+```text
+fecha
+→ horarios disponibles
+→ confirmacion de reserva
+```
+
+## Capa de datos
+
+El modelo movil se encuentra en:
+
+```text
+lib/features/sports_spaces/data/models/sports_space.dart
+```
+
+El cliente HTTP se encuentra en:
+
+```text
+lib/features/sports_spaces/data/services/sports_space_api_client.dart
+```
+
+El cliente permite:
+
+```dart
+getSportsSpaces(
+  venueId: venueId,
+  sportType: sportType,
+  isActive: true,
+);
+```
+
+El filtro de estado conserva los tres valores posibles:
+
+```text
+true  → activos
+false → inactivos
+null  → todos
+```
+
+## Verificacion movil
+
+```powershell
+dart format lib test
+flutter analyze
+flutter test
+```
+
+Resultado actual:
+
+```text
+78 pruebas aprobadas
+Flutter Analyze sin problemas
+```
