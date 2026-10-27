@@ -1,6 +1,7 @@
 """Esquemas utilizados para validar entradas y construir respuestas."""
 
 from app.schemas.reservation import (
+    AvailabilitySlotResponse,
     ReservationCreate,
     ReservationResponse,
 )
@@ -23,6 +24,7 @@ from app.schemas.venue import (
 )
 
 __all__ = [
+    "AvailabilitySlotResponse",
     "ReservationCreate",
     "ReservationResponse",
     "SportsSpaceCreate",

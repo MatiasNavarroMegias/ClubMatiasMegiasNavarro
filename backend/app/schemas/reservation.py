@@ -75,3 +75,15 @@ class ReservationResponse(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
     )
+
+
+class AvailabilitySlotResponse(BaseModel):
+    """
+    Representa un turno disponible de una hora completa.
+
+    El horario se devuelve con zona horaria para que Flutter pueda
+    mostrarlo y enviarlo posteriormente al crear la reserva.
+    """
+
+    start_at: datetime
+    end_at: datetime
