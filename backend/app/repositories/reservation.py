@@ -89,13 +89,14 @@ class ReservationRepository:
         comienza antes del final solicitado y termina despues del
         inicio solicitado.
 
-        Esta formula permite que dos turnos consecutivos, por ejemplo
+        La formula permite que dos turnos consecutivos, por ejemplo
         18:00-19:00 y 19:00-20:00, no sean considerados superpuestos.
 
         Args:
             sports_space_id: Espacio que se desea reservar.
             start_at: Inicio solicitado.
             end_at: Finalizacion solicitada.
+
         Returns:
             La primera reserva superpuesta o None.
         """
@@ -143,6 +144,7 @@ class ReservationRepository:
                 Reservation.start_at,
             )
         )
+
         return list(
             self.database_session.scalars(
                 statement,
@@ -177,6 +179,7 @@ class ReservationRepository:
                 Reservation.start_at,
             )
         )
+
         return list(
             self.database_session.scalars(
                 statement,
@@ -228,13 +231,13 @@ class ReservationRepository:
         reservation: Reservation,
     ) -> Reservation:
         """
-                    Persiste una nueva reserva.
+        Persiste una nueva reserva.
 
-        *   Args:
-                reservation: Reserva que debe guardarse.
+        Args:
+            reservation: Reserva que debe guardarse.
 
-          * Returns:
-                Reserva recargada con los valores generados por PostgreSQL.
+        Returns:
+            Reserva recargada con los valores generados por PostgreSQL.
         """
         self.database_session.add(
             reservation,
@@ -257,7 +260,7 @@ class ReservationRepository:
         cancelacion logica de una reserva.
 
         Args:
-          reservation: Reserva previamente obtenida y modificada.
+            reservation: Reserva previamente obtenida y modificada.
 
         Returns:
             Reserva actualizada despues de confirmar la transaccion.
