@@ -14,7 +14,10 @@ from app.services.availability import (
     AvailabilityVenueInactiveError,
 )
 from app.services.reservation import (
+    ReservationAlreadyCancelledError,
+    ReservationAlreadyStartedError,
     ReservationInvalidStartTimeError,
+    ReservationNotFoundError,
     ReservationOutsideVenueHoursError,
     ReservationService,
     ReservationSportsSpaceInactiveError,
@@ -49,7 +52,10 @@ __all__ = [
     "InactiveUserError",
     "InvalidCredentialsError",
     "InvalidVenueHoursError",
+    "ReservationAlreadyCancelledError",
+    "ReservationAlreadyStartedError",
     "ReservationInvalidStartTimeError",
+    "ReservationNotFoundError",
     "ReservationOutsideVenueHoursError",
     "ReservationService",
     "ReservationSportsSpaceInactiveError",

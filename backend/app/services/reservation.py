@@ -52,6 +52,24 @@ class ReservationTimeConflictError(Exception):
     """
 
 
+class ReservationNotFoundError(Exception):
+    """
+    Indica que la reserva no existe o no pertenece al usuario.
+    """
+
+
+class ReservationAlreadyCancelledError(Exception):
+    """
+    Indica que la reserva ya fue cancelada anteriormente.
+    """
+
+
+class ReservationAlreadyStartedError(Exception):
+    """
+    Indica que la reserva ya comenzo y no puede cancelarse.
+    """
+
+
 class ReservationService:
     """
     Aplica las reglas de negocio necesarias para crear reservas.
@@ -188,6 +206,109 @@ class ReservationService:
         )
 
         return self.reservation_repository.add(
+            reservation,
+        )
+
+    def list_upcoming_reservations(
+        self,
+        *,
+        user_id: int,
+    ) -> list[Reservation]:
+        """
+        Devuelve las proximas reservas confirmadas del usuario.
+
+        El momento actual se normaliza a la zona horaria configurada
+        antes de enviarlo al repositorio.
+
+        Args:
+            user_id: Identificador del usuario autenticado.
+
+        Returns:
+            Reservas confirmadas ordenadas desde la mas cercana.
+        """
+        current_datetime = self._get_current_datetime()
+
+        return self.reservation_repository.list_upcoming_by_user(
+            user_id=user_id,
+            from_at=current_datetime,
+        )
+
+    def list_reservation_history(
+        self,
+        *,
+        user_id: int,
+    ) -> list[Reservation]:
+        """
+        Devuelve el historial de reservas del usuario.
+
+        El historial incluye reservas canceladas y reservas
+        confirmadas cuyo horario ya finalizo.
+
+        Args:
+            user_id: Identificador del usuario autenticado.
+
+        Returns:
+            Historial ordenado desde la reserva mas reciente.
+        """
+        current_datetime = self._get_current_datetime()
+
+        return self.reservation_repository.list_history_by_user(
+            user_id=user_id,
+            before_at=current_datetime,
+        )
+
+    def cancel_reservation(
+        self,
+        *,
+        reservation_id: int,
+        user_id: int,
+    ) -> Reservation:
+        """
+        Cancela una reserva futura perteneciente al usuario.
+
+        La reserva no se elimina. Su estado cambia a cancelled y se
+        registra el momento exacto de la cancelacion.
+
+        Args:
+            reservation_id: Identificador de la reserva.
+            user_id: Identificador del usuario autenticado.
+
+        Returns:
+            Reserva cancelada y persistida.
+
+        Raises:
+            ReservationNotFoundError: Cuando la reserva no existe o no
+                pertenece al usuario.
+            ReservationAlreadyCancelledError: Cuando la reserva ya se
+                encuentra cancelada.
+            ReservationAlreadyStartedError: Cuando el turno ya comenzo.
+        """
+        reservation = self.reservation_repository.get_by_id_and_user(
+            reservation_id=reservation_id,
+            user_id=user_id,
+        )
+
+        if reservation is None:
+            raise ReservationNotFoundError(
+                "No existe una reserva con el identificador "
+                f"{reservation_id} para el usuario autenticado."
+            )
+
+        if reservation.status == "cancelled":
+            raise ReservationAlreadyCancelledError("La reserva ya se encuentra cancelada.")
+
+        current_datetime = self._get_current_datetime()
+        reservation_start = self._normalize_datetime(
+            reservation.start_at,
+        )
+
+        if reservation_start <= current_datetime:
+            raise ReservationAlreadyStartedError("No se puede cancelar una reserva que ya comenzo.")
+
+        reservation.status = "cancelled"
+        reservation.cancelled_at = current_datetime
+
+        return self.reservation_repository.save(
             reservation,
         )
 
