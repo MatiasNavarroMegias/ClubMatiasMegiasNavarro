@@ -6,7 +6,10 @@ from app.api.dependencies import (
 )
 from app.schemas import ReservationCreate, ReservationResponse
 from app.services import (
+    ReservationAlreadyCancelledError,
+    ReservationAlreadyStartedError,
     ReservationInvalidStartTimeError,
+    ReservationNotFoundError,
     ReservationOutsideVenueHoursError,
     ReservationSportsSpaceInactiveError,
     ReservationSportsSpaceNotFoundError,
@@ -74,6 +77,96 @@ def create_reservation(
     ) as error:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(error),
+        ) from error
+
+    return ReservationResponse.model_validate(
+        reservation,
+    )
+
+
+@router.get(
+    "/upcoming",
+    response_model=list[ReservationResponse],
+    status_code=status.HTTP_200_OK,
+)
+def list_upcoming_reservations(
+    current_user: CurrentUser,
+    service: ReservationServiceDependency,
+) -> list[ReservationResponse]:
+    """
+    Devuelve las proximas reservas del usuario autenticado.
+
+    Solamente se incluyen reservas confirmadas cuyo horario de inicio
+    sea igual o posterior al momento actual.
+    """
+    reservations = service.list_upcoming_reservations(
+        user_id=current_user.id,
+    )
+
+    return [ReservationResponse.model_validate(reservation) for reservation in reservations]
+
+
+@router.get(
+    "/history",
+    response_model=list[ReservationResponse],
+    status_code=status.HTTP_200_OK,
+)
+def list_reservation_history(
+    current_user: CurrentUser,
+    service: ReservationServiceDependency,
+) -> list[ReservationResponse]:
+    """
+    Devuelve el historial del usuario autenticado.
+
+    El historial incluye reservas canceladas y reservas confirmadas
+    cuyo horario ya finalizo.
+    """
+    reservations = service.list_reservation_history(
+        user_id=current_user.id,
+    )
+
+    return [ReservationResponse.model_validate(reservation) for reservation in reservations]
+
+
+@router.patch(
+    "/{reservation_id}/cancel",
+    response_model=ReservationResponse,
+    status_code=status.HTTP_200_OK,
+)
+def cancel_reservation(
+    reservation_id: int,
+    current_user: CurrentUser,
+    service: ReservationServiceDependency,
+) -> ReservationResponse:
+    """
+    Cancela una reserva futura del usuario autenticado.
+
+    La reserva se conserva para el historial. Su estado cambia a
+    cancelled y se registra el momento de la cancelacion.
+
+    Raises:
+        HTTPException: Con codigo 404 cuando la reserva no existe o no
+            pertenece al usuario autenticado.
+        HTTPException: Con codigo 409 cuando la reserva ya esta
+            cancelada o ya comenzo.
+    """
+    try:
+        reservation = service.cancel_reservation(
+            reservation_id=reservation_id,
+            user_id=current_user.id,
+        )
+    except ReservationNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except (
+        ReservationAlreadyCancelledError,
+        ReservationAlreadyStartedError,
+    ) as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
             detail=str(error),
         ) from error
 
