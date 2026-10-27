@@ -163,3 +163,59 @@ def test_get_settings_reuses_cached_instance(
 
     # Deja la cache limpia para no afectar otras pruebas.
     get_settings.cache_clear()
+
+
+def test_settings_use_default_application_timezone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Verifica la zona horaria predeterminada de la aplicacion.
+
+    La disponibilidad interpretara los horarios de apertura y cierre
+    de las sedes utilizando esta zona horaria.
+    """
+    configure_required_environment(monkeypatch)
+    monkeypatch.delenv(
+        "APP_TIMEZONE",
+        raising=False,
+    )
+
+    settings = Settings(_env_file=None)
+
+    assert settings.app_timezone == "America/Argentina/Buenos_Aires"
+
+
+def test_settings_read_application_timezone_from_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Verifica que APP_TIMEZONE permita cambiar la zona configurada.
+    """
+    configure_required_environment(monkeypatch)
+    monkeypatch.setenv(
+        "APP_TIMEZONE",
+        "America/Argentina/Cordoba",
+    )
+
+    settings = Settings(_env_file=None)
+
+    assert settings.app_timezone == "America/Argentina/Cordoba"
+
+
+def test_settings_reject_invalid_application_timezone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Verifica que una zona horaria inexistente sea rechazada.
+    """
+    configure_required_environment(monkeypatch)
+    monkeypatch.setenv(
+        "APP_TIMEZONE",
+        "America/Argentina/Invalid",
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match="La zona horaria de la aplicacion no es valida",
+    ):
+        Settings(_env_file=None)

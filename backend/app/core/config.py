@@ -1,7 +1,8 @@
 from functools import lru_cache
 from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,6 +26,13 @@ class Settings(BaseSettings):
 
     # Indica si las herramientas de depuracion deben estar activas.
     app_debug: bool = False
+
+    # Zona horaria utilizada para interpretar horarios de sedes,
+    # disponibilidad y reservas.
+    #
+    # Se utiliza un nombre de la base IANA para contemplar correctamente
+    # las reglas horarias del lugar donde funciona la aplicacion.
+    app_timezone: str = "America/Argentina/Buenos_Aires"
 
     # Direccion utilizada por SQLAlchemy para conectarse con PostgreSQL.
     database_url: str
@@ -51,6 +59,36 @@ class Settings(BaseSettings):
         default=60,
         gt=0,
     )
+
+    @field_validator("app_timezone")
+    @classmethod
+    def validate_app_timezone(
+        cls,
+        value: str,
+    ) -> str:
+        """
+        Verifica que la zona horaria exista dentro de la base IANA.
+
+        Args:
+            value: Nombre configurado para la zona horaria.
+
+        Returns:
+            Nombre validado de la zona horaria.
+
+        Raises:
+            ValueError: Cuando la zona horaria no existe.
+        """
+        normalized_value = value.strip()
+
+        if not normalized_value:
+            raise ValueError("La zona horaria de la aplicacion no puede estar vacia.")
+
+        try:
+            ZoneInfo(normalized_value)
+        except ZoneInfoNotFoundError as error:
+            raise ValueError("La zona horaria de la aplicacion no es valida.") from error
+
+        return normalized_value
 
     # Configura la lectura del archivo .env.
     #
