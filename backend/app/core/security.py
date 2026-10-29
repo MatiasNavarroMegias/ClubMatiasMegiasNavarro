@@ -1,3 +1,6 @@
+import hashlib
+import hmac
+import secrets
 from datetime import UTC, datetime, timedelta
 
 import jwt
@@ -65,6 +68,105 @@ class PasswordHasher:
         return self.password_hash.verify(
             password,
             stored_password_hash,
+        )
+
+
+class RecoveryCodeService:
+    """
+    Genera y protege codigos de recuperacion de contrasena.
+
+    Los codigos se generan utilizando el modulo secrets. PostgreSQL
+    recibe solamente un resumen HMAC SHA-256 y nunca el codigo original.
+    """
+
+    def __init__(
+        self,
+        secret_key: str,
+        code_length: int = 8,
+    ) -> None:
+        """
+        Inicializa el servicio de codigos temporales.
+
+        Args:
+            secret_key: Clave privada utilizada para calcular el HMAC.
+            code_length: Cantidad de digitos del codigo generado.
+
+        Raises:
+            ValueError: Cuando la clave esta vacia o la longitud no
+                permite generar un codigo razonable.
+        """
+        normalized_secret_key = secret_key.strip()
+
+        if not normalized_secret_key:
+            raise ValueError("La clave de recuperacion no puede estar vacia.")
+
+        if code_length < 6:
+            raise ValueError("El codigo de recuperacion debe tener al menos seis digitos.")
+
+        self.secret_key = normalized_secret_key
+        self.code_length = code_length
+
+    def generate_code(self) -> str:
+        """
+        Genera un codigo numerico mediante un generador seguro.
+
+        Returns:
+            Codigo numerico con longitud fija.
+        """
+        limit = pow(
+            10,
+            self.code_length,
+        )
+        generated_number = secrets.randbelow(limit)
+
+        return str(generated_number).zfill(
+            self.code_length,
+        )
+
+    def create_digest(
+        self,
+        code: str,
+    ) -> str:
+        """
+        Calcula el resumen HMAC SHA-256 de un codigo.
+
+        Args:
+            code: Codigo recibido o generado.
+
+        Returns:
+            Resumen hexadecimal de 64 caracteres.
+        """
+        return hmac.new(
+            self.secret_key.encode("utf-8"),
+            code.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
+    def verify_code(
+        self,
+        code: str,
+        stored_digest: str,
+    ) -> bool:
+        """
+        Compara un codigo con el resumen almacenado.
+
+        compare_digest evita comparaciones vulnerables a diferencias
+        de tiempo observables.
+
+        Args:
+            code: Codigo introducido por el usuario.
+            stored_digest: Resumen recuperado desde PostgreSQL.
+
+        Returns:
+            True cuando el codigo coincide.
+        """
+        received_digest = self.create_digest(
+            code,
+        )
+
+        return hmac.compare_digest(
+            received_digest,
+            stored_digest,
         )
 
 
