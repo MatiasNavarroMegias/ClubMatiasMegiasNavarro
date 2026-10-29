@@ -322,4 +322,254 @@ void main() {
 
     expect(receivedTokens, ['Bearer first-token', 'Bearer second-token']);
   });
+
+  testWidgets('abre el dialogo para cancelar una reserva', (tester) async {
+    final httpClient = MockClient((request) async {
+      return http.Response(
+        jsonEncode([reservationJson(id: 15, sportsSpaceId: 8)]),
+        200,
+      );
+    });
+
+    final apiClient = ReservationApiClient(
+      httpClient: httpClient,
+      baseUrl: baseUrl,
+    );
+
+    addTearDown(apiClient.close);
+
+    await tester.pumpWidget(createTestApp(apiClient: apiClient));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('cancel-reservation-15')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('reservation-cancellation-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('Cancelar reserva'), findsWidgets);
+    expect(find.text('Reserva #15'), findsWidgets);
+    expect(
+      find.text(
+        'El horario volvera a quedar disponible '
+        'para otros usuarios.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('reservation-cancellation-back')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('reservation-cancellation-confirm')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('permite volver sin cancelar la reserva', (tester) async {
+    var patchRequestCount = 0;
+
+    final httpClient = MockClient((request) async {
+      if (request.method == 'PATCH') {
+        patchRequestCount++;
+      }
+
+      return http.Response(
+        jsonEncode([reservationJson(id: 15, sportsSpaceId: 8)]),
+        200,
+      );
+    });
+
+    final apiClient = ReservationApiClient(
+      httpClient: httpClient,
+      baseUrl: baseUrl,
+    );
+
+    addTearDown(apiClient.close);
+
+    await tester.pumpWidget(createTestApp(apiClient: apiClient));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('cancel-reservation-15')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('reservation-cancellation-back')));
+    await tester.pumpAndSettle();
+
+    expect(patchRequestCount, 0);
+    expect(
+      find.byKey(const Key('reservation-cancellation-dialog')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('upcoming-reservation-15')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('cancela una reserva y la elimina de proximas', (tester) async {
+    var getRequestCount = 0;
+    var patchRequestCount = 0;
+
+    final httpClient = MockClient((request) async {
+      if (request.method == 'GET') {
+        getRequestCount++;
+
+        return http.Response(
+          jsonEncode([reservationJson(id: 15, sportsSpaceId: 8)]),
+          200,
+        );
+      }
+
+      if (request.method == 'PATCH') {
+        patchRequestCount++;
+
+        expect(request.url.path, '/reservations/15/cancel');
+        expect(request.headers['Authorization'], 'Bearer $accessToken');
+
+        return http.Response(
+          jsonEncode({
+            ...reservationJson(id: 15, sportsSpaceId: 8),
+            'status': 'cancelled',
+            'cancelled_at': '2026-10-29T12:30:00-03:00',
+            'updated_at': '2026-10-29T12:30:00-03:00',
+          }),
+          200,
+        );
+      }
+
+      throw StateError('Solicitud HTTP inesperada.');
+    });
+
+    final apiClient = ReservationApiClient(
+      httpClient: httpClient,
+      baseUrl: baseUrl,
+    );
+
+    addTearDown(apiClient.close);
+
+    await tester.pumpWidget(createTestApp(apiClient: apiClient));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('upcoming-reservation-15')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('cancel-reservation-15')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('reservation-cancellation-confirm')));
+    await tester.pumpAndSettle();
+
+    expect(getRequestCount, 1);
+    expect(patchRequestCount, 1);
+    expect(find.byKey(const ValueKey('upcoming-reservation-15')), findsNothing);
+    expect(
+      find.byKey(const Key('upcoming-reservations-empty')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('La reserva fue cancelada correctamente.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('mantiene las otras reservas despues de cancelar una', (
+    tester,
+  ) async {
+    final httpClient = MockClient((request) async {
+      if (request.method == 'GET') {
+        return http.Response(
+          jsonEncode([
+            reservationJson(id: 15, sportsSpaceId: 8),
+            reservationJson(id: 16, sportsSpaceId: 10),
+          ]),
+          200,
+        );
+      }
+
+      if (request.method == 'PATCH') {
+        return http.Response(
+          jsonEncode({
+            ...reservationJson(id: 15, sportsSpaceId: 8),
+            'status': 'cancelled',
+            'cancelled_at': '2026-10-29T12:30:00-03:00',
+            'updated_at': '2026-10-29T12:30:00-03:00',
+          }),
+          200,
+        );
+      }
+
+      throw StateError('Solicitud HTTP inesperada.');
+    });
+
+    final apiClient = ReservationApiClient(
+      httpClient: httpClient,
+      baseUrl: baseUrl,
+    );
+
+    addTearDown(apiClient.close);
+
+    await tester.pumpWidget(createTestApp(apiClient: apiClient));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('cancel-reservation-15')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('reservation-cancellation-confirm')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('upcoming-reservation-15')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('upcoming-reservation-16')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('upcoming-reservations-empty')), findsNothing);
+  });
+
+  testWidgets('muestra el error recibido al cancelar', (tester) async {
+    final httpClient = MockClient((request) async {
+      if (request.method == 'GET') {
+        return http.Response(
+          jsonEncode([reservationJson(id: 15, sportsSpaceId: 8)]),
+          200,
+        );
+      }
+
+      return http.Response(
+        jsonEncode({'detail': 'La reserva ya se encuentra cancelada.'}),
+        409,
+      );
+    });
+
+    final apiClient = ReservationApiClient(
+      httpClient: httpClient,
+      baseUrl: baseUrl,
+    );
+
+    addTearDown(apiClient.close);
+
+    await tester.pumpWidget(createTestApp(apiClient: apiClient));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('cancel-reservation-15')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('reservation-cancellation-confirm')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('La reserva ya se encuentra cancelada.'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('upcoming-reservation-15')),
+      findsOneWidget,
+    );
+
+    final cancelButton = tester.widget<OutlinedButton>(
+      find.byKey(const ValueKey('cancel-reservation-15')),
+    );
+
+    expect(cancelButton.onPressed, isNotNull);
+  });
 }
