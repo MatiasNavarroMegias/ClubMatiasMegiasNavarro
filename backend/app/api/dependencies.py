@@ -11,9 +11,11 @@ from app.core.security import (
     AccessTokenService,
     InvalidAccessTokenError,
     PasswordHasher,
+    RecoveryCodeService,
 )
 from app.models import User
 from app.repositories import (
+    PasswordRecoveryRepository,
     ReservationRepository,
     SportsSpaceRepository,
     UserRepository,
@@ -22,6 +24,8 @@ from app.repositories import (
 from app.services import (
     AuthService,
     AvailabilityService,
+    DevelopmentRecoveryCodeNotifier,
+    PasswordRecoveryService,
     ReservationService,
     SportsSpaceService,
     VenueService,
@@ -77,6 +81,61 @@ def get_auth_service(
         repository=repository,
         password_hasher=password_hasher,
         access_token_service=access_token_service,
+    )
+
+
+def get_password_recovery_service(
+    database_session: DatabaseSession,
+) -> PasswordRecoveryService:
+    """
+    Construye el servicio de recuperacion de contrasena.
+
+    La sesion actual se comparte entre los repositorios de usuarios y
+    codigos temporales. La clave JWT tambien protege el resumen HMAC
+    del codigo de recuperacion.
+
+    Durante el desarrollo, el codigo se muestra en la consola del
+    backend. Esta implementacion debera reemplazarse por correo antes
+    de utilizar el sistema en produccion.
+
+    Args:
+        database_session: Sesion asociada a la solicitud actual.
+
+    Returns:
+        Servicio preparado para solicitar y confirmar recuperaciones.
+
+    Raises:
+        RuntimeError: Cuando se intenta utilizar el notificador de
+            desarrollo dentro del entorno de produccion.
+    """
+    settings = get_settings()
+
+    if settings.app_env == "production":
+        raise RuntimeError(
+            "Debe configurar un notificador de recuperacion seguro para el entorno de produccion."
+        )
+
+    user_repository = UserRepository(
+        database_session,
+    )
+    recovery_repository = PasswordRecoveryRepository(
+        database_session,
+    )
+    code_service = RecoveryCodeService(
+        secret_key=settings.jwt_secret_key,
+        code_length=8,
+    )
+    password_hasher = PasswordHasher()
+    notifier = DevelopmentRecoveryCodeNotifier()
+
+    return PasswordRecoveryService(
+        user_repository=user_repository,
+        recovery_repository=recovery_repository,
+        code_service=code_service,
+        password_hasher=password_hasher,
+        notifier=notifier,
+        expiration_minutes=15,
+        maximum_attempts=5,
     )
 
 
@@ -282,4 +341,28 @@ AvailabilityServiceDependency = Annotated[
 ReservationServiceDependency = Annotated[
     ReservationService,
     Depends(get_reservation_service),
+]
+
+# Tipo reutilizable para inyectar PasswordRecoveryService.
+PasswordRecoveryServiceDependency = Annotated[
+    PasswordRecoveryService,
+    Depends(get_password_recovery_service),
+]
+
+# Tipo reutilizable para inyectar AuthService en los endpoints.
+AuthServiceDependency = Annotated[
+    AuthService,
+    Depends(get_auth_service),
+]
+
+# Tipo reutilizable para inyectar PasswordRecoveryService.
+PasswordRecoveryServiceDependency = Annotated[
+    PasswordRecoveryService,
+    Depends(get_password_recovery_service),
+]
+
+# Tipo reutilizable para inyectar el usuario autenticado.
+CurrentUser = Annotated[
+    User,
+    Depends(get_current_user),
 ]
