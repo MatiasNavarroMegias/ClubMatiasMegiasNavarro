@@ -18,6 +18,7 @@ class VenueListScreen extends StatefulWidget {
     this.apiClient,
     this.sportsSpaceApiClient,
     this.reservationApiClient,
+    this.accessToken,
   });
 
   /// Cliente opcional utilizado para obtener las sedes.
@@ -36,6 +37,11 @@ class VenueListScreen extends StatefulWidget {
   /// Si no se recibe, AvailabilitySelectionScreen construye su propio
   /// cliente al seleccionar un espacio deportivo.
   final ReservationApiClient? reservationApiClient;
+
+  /// Token utilizado para crear reservas autenticadas.
+  ///
+  /// Puede ser null en pruebas que solamente consultan sedes o espacios.
+  final String? accessToken;
 
   @override
   State<VenueListScreen> createState() => _VenueListScreenState();
@@ -136,6 +142,7 @@ class _VenueListScreenState extends State<VenueListScreen> {
             venue: venue,
             sportsSpace: sportsSpace,
             apiClient: widget.reservationApiClient,
+            accessToken: widget.accessToken,
           );
         },
       ),

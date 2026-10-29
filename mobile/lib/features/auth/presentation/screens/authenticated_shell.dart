@@ -72,7 +72,10 @@ class _AuthenticatedShellState extends State<AuthenticatedShell> {
               _selectSection(AuthenticatedSection.profile);
             },
           ),
-          VenueListScreen(apiClient: widget.venueApiClient),
+          VenueListScreen(
+            apiClient: widget.venueApiClient,
+            accessToken: widget.authController.accessToken,
+          ),
           const _ReservationsPlaceholder(),
           ProfileScreen(authController: widget.authController),
         ],

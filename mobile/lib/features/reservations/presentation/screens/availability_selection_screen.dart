@@ -15,6 +15,7 @@ class AvailabilitySelectionScreen extends StatefulWidget {
     required this.venue,
     required this.sportsSpace,
     this.apiClient,
+    this.accessToken,
     this.nowProvider,
     this.onSlotSelected,
     super.key,
@@ -28,6 +29,12 @@ class AvailabilitySelectionScreen extends StatefulWidget {
 
   /// Cliente reemplazable durante las pruebas automatizadas.
   final ReservationApiClient? apiClient;
+
+  /// Token utilizado para crear una reserva autenticada.
+  ///
+  /// Puede ser null mientras la pantalla se utiliza solamente para
+  /// consultar disponibilidad o durante pruebas específicas.
+  final String? accessToken;
 
   /// Proveedor opcional de la fecha actual.
   ///
@@ -54,6 +61,7 @@ class _AvailabilitySelectionScreenState
   AvailabilitySlot? _selectedSlot;
   String? _errorMessage;
   bool _isLoading = true;
+  bool _isCreatingReservation = false;
 
   @override
   void initState() {
@@ -176,6 +184,147 @@ class _AvailabilitySelectionScreenState
     widget.onSlotSelected?.call(slot);
   }
 
+  /// Solicita confirmacion y crea la reserva seleccionada.
+  Future<void> _confirmReservation() async {
+    final selectedSlot = _selectedSlot;
+
+    if (selectedSlot == null) {
+      return;
+    }
+
+    final accessToken = widget.accessToken;
+
+    if (accessToken == null || accessToken.trim().isEmpty) {
+      _showMessage(
+        'La sesion no se encuentra disponible. Inicia sesion nuevamente.',
+      );
+      return;
+    }
+
+    final localStart = selectedSlot.startAt.toLocal();
+    final localEnd = selectedSlot.endAt.toLocal();
+
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              key: const Key('reservation-confirmation-dialog'),
+              title: const Text('Confirmar reserva'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(widget.sportsSpace.name),
+                  const SizedBox(height: 8),
+                  Text(widget.venue.name),
+                  const SizedBox(height: 16),
+                  Text('Fecha: ${_formatDate(localStart)}'),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Horario: ${_formatTime(localStart)}'
+                    ' - ${_formatTime(localEnd)}',
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  key: const Key('reservation-confirmation-cancel'),
+                  onPressed: () {
+                    Navigator.of(context).pop(false);
+                  },
+                  child: const Text('Volver'),
+                ),
+                FilledButton(
+                  key: const Key('reservation-confirmation-accept'),
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                  },
+                  child: const Text('Confirmar'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (!confirmed || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _isCreatingReservation = true;
+    });
+
+    try {
+      await _apiClient.createReservation(
+        accessToken: accessToken,
+        sportsSpaceId: widget.sportsSpace.id,
+        startAt: selectedSlot.startAt,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isCreatingReservation = false;
+        _selectedSlot = null;
+      });
+
+      _showMessage('La reserva fue creada correctamente.');
+
+      await _loadAvailability();
+    } on ReservationApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isCreatingReservation = false;
+      });
+
+      _showMessage(error.message);
+    } on Exception {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isCreatingReservation = false;
+      });
+
+      _showMessage('Ocurrio un error inesperado al crear la reserva.');
+    }
+  }
+
+  /// Muestra un mensaje temporal dentro de la pantalla.
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Formatea una fecha para mostrarla al usuario.
+  String _formatDate(DateTime value) {
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+
+    return '$day/$month/${value.year}';
+  }
+
+  /// Formatea una hora para mostrarla al usuario.
+  String _formatTime(DateTime value) {
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+
+    return '$hour:$minute';
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -198,6 +347,32 @@ class _AvailabilitySelectionScreenState
             _DateSelector(selectedDate: _selectedDate, onPressed: _selectDate),
             Expanded(child: _buildBody()),
           ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+          child: FilledButton.icon(
+            key: const Key('availability-confirm-button'),
+            onPressed: _selectedSlot != null && !_isCreatingReservation
+                ? _confirmReservation
+                : null,
+            icon: _isCreatingReservation
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(
+                      key: Key('reservation-creation-loading'),
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Icon(Icons.check_circle_outline),
+            label: Text(
+              _isCreatingReservation
+                  ? 'Creando reserva...'
+                  : 'Confirmar reserva',
+            ),
+          ),
         ),
       ),
     );
