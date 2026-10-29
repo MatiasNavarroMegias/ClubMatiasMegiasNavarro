@@ -44,6 +44,7 @@ void main() {
 
   Widget createTestApp({
     required ReservationApiClient apiClient,
+    String? accessToken,
     ValueChanged<AvailabilitySlot>? onSlotSelected,
   }) {
     return MaterialApp(
@@ -51,6 +52,7 @@ void main() {
         venue: createVenue(),
         sportsSpace: createSportsSpace(),
         apiClient: apiClient,
+        accessToken: accessToken,
         nowProvider: () => currentDate,
         onSlotSelected: onSlotSelected,
       ),
@@ -340,5 +342,320 @@ void main() {
     expect(requestCount, 2);
     expect(find.byKey(const Key('availability-slot-list')), findsOneWidget);
     expect(find.byKey(const Key('availability-error')), findsNothing);
+  });
+
+  testWidgets('habilita la confirmacion despues de seleccionar un horario', (
+    tester,
+  ) async {
+    const startText = '2026-11-03T18:00:00-03:00';
+    const endText = '2026-11-03T19:00:00-03:00';
+
+    final httpClient = MockClient((request) async {
+      return http.Response(
+        jsonEncode([
+          {'start_at': startText, 'end_at': endText},
+        ]),
+        200,
+      );
+    });
+
+    final apiClient = ReservationApiClient(
+      httpClient: httpClient,
+      baseUrl: baseUrl,
+    );
+
+    addTearDown(apiClient.close);
+
+    await tester.pumpWidget(
+      createTestApp(apiClient: apiClient, accessToken: 'test-token'),
+    );
+    await tester.pumpAndSettle();
+
+    final confirmButton = find.byKey(const Key('availability-confirm-button'));
+
+    expect(confirmButton, findsOneWidget);
+
+    var button = tester.widget<FilledButton>(confirmButton);
+
+    expect(button.onPressed, isNull);
+
+    final startAt = DateTime.parse(startText);
+
+    await tester.tap(
+      find.byKey(ValueKey('availability-slot-${startAt.toIso8601String()}')),
+    );
+    await tester.pumpAndSettle();
+
+    button = tester.widget<FilledButton>(confirmButton);
+
+    expect(button.onPressed, isNotNull);
+
+    await tester.tap(confirmButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('reservation-confirmation-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('Confirmar reserva'), findsWidgets);
+    expect(find.text('Cancha de Futbol 1'), findsWidgets);
+    expect(find.text('Sede Ramos Mejia'), findsWidgets);
+    expect(
+      find.byKey(const Key('reservation-confirmation-accept')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('reservation-confirmation-cancel')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('permite volver sin crear la reserva', (tester) async {
+    const startText = '2026-11-03T18:00:00-03:00';
+
+    var postRequestCount = 0;
+
+    final httpClient = MockClient((request) async {
+      if (request.method == 'POST') {
+        postRequestCount++;
+      }
+
+      return http.Response(
+        jsonEncode([
+          {'start_at': startText, 'end_at': '2026-11-03T19:00:00-03:00'},
+        ]),
+        200,
+      );
+    });
+
+    final apiClient = ReservationApiClient(
+      httpClient: httpClient,
+      baseUrl: baseUrl,
+    );
+
+    addTearDown(apiClient.close);
+
+    await tester.pumpWidget(
+      createTestApp(apiClient: apiClient, accessToken: 'test-token'),
+    );
+    await tester.pumpAndSettle();
+
+    final startAt = DateTime.parse(startText);
+
+    await tester.tap(
+      find.byKey(ValueKey('availability-slot-${startAt.toIso8601String()}')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('availability-confirm-button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('reservation-confirmation-cancel')));
+    await tester.pumpAndSettle();
+
+    expect(postRequestCount, 0);
+    expect(
+      find.byKey(const Key('reservation-confirmation-dialog')),
+      findsNothing,
+    );
+    expect(find.byKey(const Key('availability-selected-slot')), findsOneWidget);
+  });
+
+  testWidgets('crea la reserva y recarga la disponibilidad', (tester) async {
+    const startText = '2026-11-03T18:00:00-03:00';
+    const endText = '2026-11-03T19:00:00-03:00';
+
+    var availabilityRequestCount = 0;
+    var creationRequestCount = 0;
+
+    final httpClient = MockClient((request) async {
+      if (request.method == 'GET') {
+        availabilityRequestCount++;
+
+        if (availabilityRequestCount == 1) {
+          return http.Response(
+            jsonEncode([
+              {'start_at': startText, 'end_at': endText},
+            ]),
+            200,
+          );
+        }
+
+        return http.Response(jsonEncode(<Map<String, dynamic>>[]), 200);
+      }
+
+      if (request.method == 'POST') {
+        creationRequestCount++;
+
+        expect(request.url.path, '/reservations');
+        expect(request.headers['Authorization'], 'Bearer test-token');
+
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+
+        expect(body['sports_space_id'], 5);
+        expect(
+          DateTime.parse(body['start_at'] as String),
+          DateTime.parse(startText),
+        );
+
+        return http.Response(
+          jsonEncode({
+            'id': 15,
+            'user_id': 7,
+            'sports_space_id': 5,
+            'start_at': startText,
+            'end_at': endText,
+            'status': 'confirmed',
+            'cancelled_at': null,
+            'created_at': '2026-10-29T12:00:00Z',
+            'updated_at': '2026-10-29T12:00:00Z',
+          }),
+          201,
+        );
+      }
+
+      throw StateError('Solicitud HTTP inesperada.');
+    });
+
+    final apiClient = ReservationApiClient(
+      httpClient: httpClient,
+      baseUrl: baseUrl,
+    );
+
+    addTearDown(apiClient.close);
+
+    await tester.pumpWidget(
+      createTestApp(apiClient: apiClient, accessToken: 'test-token'),
+    );
+    await tester.pumpAndSettle();
+
+    final startAt = DateTime.parse(startText);
+
+    await tester.tap(
+      find.byKey(ValueKey('availability-slot-${startAt.toIso8601String()}')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('availability-confirm-button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('reservation-confirmation-accept')));
+    await tester.pumpAndSettle();
+
+    expect(creationRequestCount, 1);
+    expect(availabilityRequestCount, 2);
+    expect(find.text('La reserva fue creada correctamente.'), findsOneWidget);
+    expect(find.byKey(const Key('availability-empty')), findsOneWidget);
+    expect(
+      find.byKey(ValueKey('availability-slot-${startAt.toIso8601String()}')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('informa cuando no existe una sesion disponible', (tester) async {
+    const startText = '2026-11-03T18:00:00-03:00';
+
+    var postRequestCount = 0;
+
+    final httpClient = MockClient((request) async {
+      if (request.method == 'POST') {
+        postRequestCount++;
+      }
+
+      return http.Response(
+        jsonEncode([
+          {'start_at': startText, 'end_at': '2026-11-03T19:00:00-03:00'},
+        ]),
+        200,
+      );
+    });
+
+    final apiClient = ReservationApiClient(
+      httpClient: httpClient,
+      baseUrl: baseUrl,
+    );
+
+    addTearDown(apiClient.close);
+
+    await tester.pumpWidget(createTestApp(apiClient: apiClient));
+    await tester.pumpAndSettle();
+
+    final startAt = DateTime.parse(startText);
+
+    await tester.tap(
+      find.byKey(ValueKey('availability-slot-${startAt.toIso8601String()}')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('availability-confirm-button')));
+    await tester.pump();
+
+    expect(postRequestCount, 0);
+    expect(
+      find.text(
+        'La sesion no se encuentra disponible. '
+        'Inicia sesion nuevamente.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('reservation-confirmation-dialog')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('muestra el conflicto recibido al crear la reserva', (
+    tester,
+  ) async {
+    const startText = '2026-11-03T18:00:00-03:00';
+
+    final httpClient = MockClient((request) async {
+      if (request.method == 'GET') {
+        return http.Response(
+          jsonEncode([
+            {'start_at': startText, 'end_at': '2026-11-03T19:00:00-03:00'},
+          ]),
+          200,
+        );
+      }
+
+      return http.Response(
+        jsonEncode({
+          'detail': 'El turno solicitado ya se encuentra reservado.',
+        }),
+        409,
+      );
+    });
+
+    final apiClient = ReservationApiClient(
+      httpClient: httpClient,
+      baseUrl: baseUrl,
+    );
+
+    addTearDown(apiClient.close);
+
+    await tester.pumpWidget(
+      createTestApp(apiClient: apiClient, accessToken: 'test-token'),
+    );
+    await tester.pumpAndSettle();
+
+    final startAt = DateTime.parse(startText);
+
+    await tester.tap(
+      find.byKey(ValueKey('availability-slot-${startAt.toIso8601String()}')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('availability-confirm-button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('reservation-confirmation-accept')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('El turno solicitado ya se encuentra reservado.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('availability-selected-slot')), findsOneWidget);
   });
 }
