@@ -13,6 +13,15 @@ from app.services.availability import (
     AvailabilitySportsSpaceNotFoundError,
     AvailabilityVenueInactiveError,
 )
+from app.services.password_recovery import (
+    InvalidPasswordRecoveryCodeError,
+    PasswordRecoveryAttemptsExceededError,
+    PasswordRecoveryService,
+)
+from app.services.recovery_notifier import (
+    DevelopmentRecoveryCodeNotifier,
+    RecoveryCodeNotifier,
+)
 from app.services.reservation import (
     ReservationAlreadyCancelledError,
     ReservationAlreadyStartedError,
@@ -42,6 +51,11 @@ from app.services.venue import (
 )
 
 __all__ = [
+    "DevelopmentRecoveryCodeNotifier",
+    "InvalidPasswordRecoveryCodeError",
+    "PasswordRecoveryAttemptsExceededError",
+    "PasswordRecoveryService",
+    "RecoveryCodeNotifier",
     "AuthService",
     "AvailabilityDateInPastError",
     "AvailabilityService",
