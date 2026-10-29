@@ -1,5 +1,10 @@
 """Esquemas utilizados para validar entradas y construir respuestas."""
 
+from app.schemas.password_recovery import (
+    PasswordRecoveryConfirm,
+    PasswordRecoveryMessage,
+    PasswordRecoveryRequest,
+)
 from app.schemas.reservation import (
     AvailabilitySlotResponse,
     ReservationCreate,
@@ -25,6 +30,9 @@ from app.schemas.venue import (
 
 __all__ = [
     "AvailabilitySlotResponse",
+    "PasswordRecoveryConfirm",
+    "PasswordRecoveryMessage",
+    "PasswordRecoveryRequest",
     "ReservationCreate",
     "ReservationResponse",
     "SportsSpaceCreate",
