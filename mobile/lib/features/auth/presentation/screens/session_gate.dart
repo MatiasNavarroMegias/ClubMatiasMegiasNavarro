@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../reservations/data/services/reservation_api_client.dart';
 import '../../../venues/data/services/venue_api_client.dart';
 import '../controllers/auth_controller.dart';
 import 'authenticated_shell.dart';
@@ -14,11 +15,13 @@ class SessionGate extends StatefulWidget {
   const SessionGate({
     required this.authController,
     this.venueApiClient,
+    this.reservationApiClient,
     super.key,
   });
 
   final AuthController authController;
   final VenueApiClient? venueApiClient;
+  final ReservationApiClient? reservationApiClient;
 
   @override
   State<SessionGate> createState() => _SessionGateState();
@@ -92,6 +95,7 @@ class _SessionGateState extends State<SessionGate> {
       AuthStatus.authenticated => AuthenticatedShell(
         authController: widget.authController,
         venueApiClient: widget.venueApiClient,
+        reservationApiClient: widget.reservationApiClient,
       ),
       AuthStatus.unauthenticated || AuthStatus.loading =>
         _showRegistration

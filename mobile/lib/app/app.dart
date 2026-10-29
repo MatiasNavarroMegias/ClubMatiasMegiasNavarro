@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../features/reservations/data/services/reservation_api_client.dart';
 import '../features/auth/data/services/auth_api_client.dart';
 import '../features/auth/data/services/session_storage.dart';
 import '../features/auth/presentation/controllers/auth_controller.dart';
@@ -12,7 +13,12 @@ import 'theme/app_theme.dart';
 /// Este widget centraliza el tema y construye las dependencias que
 /// administran la autenticacion durante toda la aplicacion.
 class ClubApp extends StatefulWidget {
-  const ClubApp({super.key, this.authController, this.venueApiClient});
+  const ClubApp({
+    super.key,
+    this.authController,
+    this.venueApiClient,
+    this.reservationApiClient,
+  });
 
   /// Controlador opcional utilizado durante las pruebas.
   ///
@@ -22,6 +28,9 @@ class ClubApp extends StatefulWidget {
 
   /// Cliente opcional utilizado por la pantalla de sedes.
   final VenueApiClient? venueApiClient;
+
+  /// Cliente opcional utilizado por el flujo de reservas.
+  final ReservationApiClient? reservationApiClient;
 
   @override
   State<ClubApp> createState() => _ClubAppState();
@@ -64,6 +73,7 @@ class _ClubAppState extends State<ClubApp> {
       home: SessionGate(
         authController: _authController,
         venueApiClient: widget.venueApiClient,
+        reservationApiClient: widget.reservationApiClient,
       ),
     );
   }

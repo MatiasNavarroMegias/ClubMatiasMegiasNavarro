@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../reservations/data/services/reservation_api_client.dart';
+import '../../../reservations/presentation/screens/upcoming_reservations_screen.dart';
 import '../../../venues/data/services/venue_api_client.dart';
 import '../../../venues/presentation/screens/venue_list_screen.dart';
 import '../controllers/auth_controller.dart';
@@ -17,6 +19,7 @@ class AuthenticatedShell extends StatefulWidget {
   const AuthenticatedShell({
     required this.authController,
     this.venueApiClient,
+    this.reservationApiClient,
     super.key,
   });
 
@@ -27,6 +30,11 @@ class AuthenticatedShell extends StatefulWidget {
   ///
   /// Durante las pruebas puede reemplazarse por un cliente simulado.
   final VenueApiClient? venueApiClient;
+
+  /// Cliente opcional utilizado por el flujo de reservas.
+  ///
+  /// Permite utilizar un cliente HTTP simulado durante las pruebas.
+  final ReservationApiClient? reservationApiClient;
 
   @override
   State<AuthenticatedShell> createState() => _AuthenticatedShellState();
@@ -76,7 +84,10 @@ class _AuthenticatedShellState extends State<AuthenticatedShell> {
             apiClient: widget.venueApiClient,
             accessToken: widget.authController.accessToken,
           ),
-          const _ReservationsPlaceholder(),
+          _BuildReservationsSection(
+            accessToken: widget.authController.accessToken,
+            apiClient: widget.reservationApiClient,
+          ),
           ProfileScreen(authController: widget.authController),
         ],
       ),
@@ -153,9 +164,31 @@ class _AuthenticatedShellState extends State<AuthenticatedShell> {
   }
 }
 
-/// Pantalla temporal hasta implementar la gestion de reservas.
-class _ReservationsPlaceholder extends StatelessWidget {
-  const _ReservationsPlaceholder();
+/// Construye la seccion de reservas utilizando la sesion actual.
+class _BuildReservationsSection extends StatelessWidget {
+  const _BuildReservationsSection({
+    required this.accessToken,
+    required this.apiClient,
+  });
+
+  final String? accessToken;
+  final ReservationApiClient? apiClient;
+
+  @override
+  Widget build(BuildContext context) {
+    final token = accessToken;
+
+    if (token == null || token.trim().isEmpty) {
+      return const _ReservationsSessionUnavailableView();
+    }
+
+    return UpcomingReservationsScreen(accessToken: token, apiClient: apiClient);
+  }
+}
+
+/// Muestra un estado seguro cuando la sesion no contiene un token.
+class _ReservationsSessionUnavailableView extends StatelessWidget {
+  const _ReservationsSessionUnavailableView();
 
   @override
   Widget build(BuildContext context) {
@@ -169,51 +202,27 @@ class _ReservationsPlaceholder extends StatelessWidget {
         surfaceTintColor: Colors.transparent,
       ),
       body: Center(
-        key: const Key('reservations-placeholder'),
+        key: const Key('reservations-session-unavailable'),
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Card(
-              elevation: 0,
-              color: colorScheme.surfaceContainer,
-              child: Padding(
-                padding: const EdgeInsets.all(28),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: colorScheme.primary.withValues(alpha: 0.14),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(18),
-                        child: Icon(
-                          Icons.calendar_month_outlined,
-                          size: 42,
-                          color: colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Todavia no tenes reservas',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Tus proximas reservas apareceran '
-                      'en esta seccion.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lock_outline, size: 64, color: colorScheme.error),
+              const SizedBox(height: 16),
+              Text(
+                'La sesion no se encuentra disponible',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-            ),
+              const SizedBox(height: 8),
+              Text(
+                'Cerra la sesion e inicia nuevamente '
+                'para consultar tus reservas.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
           ),
         ),
       ),
