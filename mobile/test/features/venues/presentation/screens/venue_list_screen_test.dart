@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:club_matias_megias_navarro/features/reservations/data/services/reservation_api_client.dart';
 import 'package:club_matias_megias_navarro/features/venues/data/services/venue_api_client.dart';
 import 'package:club_matias_megias_navarro/features/venues/presentation/screens/venue_list_screen.dart';
 import 'package:flutter/material.dart';
@@ -298,5 +299,113 @@ void main() {
     expect(sportsSpaceRequestCount, 0);
     expect(find.text('Seleccionar sede'), findsOneWidget);
     expect(find.text('Espacios deportivos'), findsNothing);
+  });
+
+  testWidgets('abre la disponibilidad al seleccionar un espacio deportivo', (
+    tester,
+  ) async {
+    final venueHttpClient = MockClient((request) async {
+      expect(request.method, 'GET');
+      expect(request.url.path, '/venues');
+
+      return http.Response(
+        jsonEncode([venueJson(id: 1, name: 'Sede Moron', isActive: true)]),
+        200,
+      );
+    });
+
+    final sportsSpaceHttpClient = MockClient((request) async {
+      expect(request.method, 'GET');
+      expect(request.url.path, '/sports-spaces');
+      expect(request.url.queryParameters, {
+        'venue_id': '1',
+        'is_active': 'true',
+      });
+
+      return http.Response(
+        jsonEncode([
+          {
+            'id': 10,
+            'venue_id': 1,
+            'name': 'Cancha de Futbol 1',
+            'sport_type': 'Futbol',
+            'space_number': 1,
+            'is_active': true,
+            'created_at': '2026-10-25T12:00:00Z',
+            'updated_at': '2026-10-25T13:00:00Z',
+          },
+        ]),
+        200,
+      );
+    });
+
+    var availabilityRequestCount = 0;
+
+    final reservationHttpClient = MockClient((request) async {
+      availabilityRequestCount++;
+
+      expect(request.method, 'GET');
+      expect(request.url.path, '/sports-spaces/10/availability');
+
+      final requestedDate = request.url.queryParameters['date'];
+
+      expect(requestedDate, isNotNull);
+      expect(requestedDate, matches(RegExp(r'^\d{4}-\d{2}-\d{2}$')));
+
+      return http.Response(
+        jsonEncode([
+          {
+            'start_at': '2026-11-03T18:00:00-03:00',
+            'end_at': '2026-11-03T19:00:00-03:00',
+          },
+        ]),
+        200,
+      );
+    });
+
+    final venueApiClient = VenueApiClient(
+      httpClient: venueHttpClient,
+      baseUrl: baseUrl,
+    );
+    final sportsSpaceApiClient = SportsSpaceApiClient(
+      httpClient: sportsSpaceHttpClient,
+      baseUrl: baseUrl,
+    );
+    final reservationApiClient = ReservationApiClient(
+      httpClient: reservationHttpClient,
+      baseUrl: baseUrl,
+    );
+
+    addTearDown(venueApiClient.close);
+    addTearDown(sportsSpaceApiClient.close);
+    addTearDown(reservationApiClient.close);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: VenueListScreen(
+          apiClient: venueApiClient,
+          sportsSpaceApiClient: sportsSpaceApiClient,
+          reservationApiClient: reservationApiClient,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('venue-card-1')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('venue-card-1')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('sports-space-card-10')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('sports-space-card-10')));
+    await tester.pumpAndSettle();
+
+    expect(availabilityRequestCount, 1);
+    expect(find.byKey(const Key('availability-screen')), findsOneWidget);
+    expect(find.text('Elegir horario'), findsOneWidget);
+    expect(find.text('Cancha de Futbol 1'), findsOneWidget);
+    expect(find.text('Sede Moron · Futbol'), findsOneWidget);
+    expect(find.byKey(const Key('availability-slot-list')), findsOneWidget);
   });
 }

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../sports_spaces/data/models/sports_space.dart';
+import '../../../reservations/data/services/reservation_api_client.dart';
+import '../../../reservations/presentation/screens/availability_selection_screen.dart';
 import '../../../sports_spaces/data/services/sports_space_api_client.dart';
 import '../../../sports_spaces/presentation/screens/sports_space_list_screen.dart';
 import '../../data/models/venue.dart';
@@ -10,7 +13,12 @@ import '../../data/services/venue_api_client.dart';
 /// La pantalla administra los estados de carga, contenido, lista vacia
 /// y error. Al seleccionar una sede, muestra sus espacios deportivos.
 class VenueListScreen extends StatefulWidget {
-  const VenueListScreen({super.key, this.apiClient, this.sportsSpaceApiClient});
+  const VenueListScreen({
+    super.key,
+    this.apiClient,
+    this.sportsSpaceApiClient,
+    this.reservationApiClient,
+  });
 
   /// Cliente opcional utilizado para obtener las sedes.
   ///
@@ -22,6 +30,12 @@ class VenueListScreen extends StatefulWidget {
   /// Si no se recibe, SportsSpaceListScreen construye su propio
   /// cliente cuando se abre una sede.
   final SportsSpaceApiClient? sportsSpaceApiClient;
+
+  /// Cliente opcional utilizado para consultar disponibilidad.
+  ///
+  /// Si no se recibe, AvailabilitySelectionScreen construye su propio
+  /// cliente al seleccionar un espacio deportivo.
+  final ReservationApiClient? reservationApiClient;
 
   @override
   State<VenueListScreen> createState() => _VenueListScreenState();
@@ -101,6 +115,27 @@ class _VenueListScreenState extends State<VenueListScreen> {
           return SportsSpaceListScreen(
             venue: venue,
             apiClient: widget.sportsSpaceApiClient,
+            onSportsSpaceSelected: (sportsSpace) {
+              _openAvailability(venue: venue, sportsSpace: sportsSpace);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  /// Abre la consulta de disponibilidad del espacio seleccionado.
+  void _openAvailability({
+    required Venue venue,
+    required SportsSpace sportsSpace,
+  }) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) {
+          return AvailabilitySelectionScreen(
+            venue: venue,
+            sportsSpace: sportsSpace,
+            apiClient: widget.reservationApiClient,
           );
         },
       ),
