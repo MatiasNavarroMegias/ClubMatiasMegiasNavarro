@@ -34,6 +34,7 @@ class _UpcomingReservationsScreenState
   List<Reservation> _reservations = const [];
   String? _errorMessage;
   bool _isLoading = true;
+  final Set<int> _cancellingReservationIds = {};
 
   @override
   void initState() {
@@ -108,6 +109,138 @@ class _UpcomingReservationsScreenState
     }
   }
 
+  /// Solicita confirmacion y cancela una reserva futura.
+  Future<void> _cancelReservation(Reservation reservation) async {
+    if (_cancellingReservationIds.contains(reservation.id)) {
+      return;
+    }
+
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            final localStart = reservation.startAt.toLocal();
+            final localEnd = reservation.endAt.toLocal();
+
+            return AlertDialog(
+              key: const Key('reservation-cancellation-dialog'),
+              title: const Text('Cancelar reserva'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Reserva #${reservation.id}'),
+                  const SizedBox(height: 8),
+                  Text('Fecha: ${_formatDate(localStart)}'),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Horario: ${_formatTime(localStart)}'
+                    ' - ${_formatTime(localEnd)}',
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'El horario volvera a quedar disponible '
+                    'para otros usuarios.',
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  key: const Key('reservation-cancellation-back'),
+                  onPressed: () {
+                    Navigator.of(context).pop(false);
+                  },
+                  child: const Text('Volver'),
+                ),
+                FilledButton(
+                  key: const Key('reservation-cancellation-confirm'),
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                  },
+                  child: const Text('Cancelar reserva'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (!confirmed || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _cancellingReservationIds.add(reservation.id);
+    });
+
+    try {
+      await _apiClient.cancelReservation(
+        accessToken: widget.accessToken,
+        reservationId: reservation.id,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _cancellingReservationIds.remove(reservation.id);
+        _reservations = _reservations.where((currentReservation) {
+          return currentReservation.id != reservation.id;
+        }).toList();
+      });
+
+      _showMessage('La reserva fue cancelada correctamente.');
+    } on ReservationApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _cancellingReservationIds.remove(reservation.id);
+      });
+
+      _showMessage(error.message);
+    } on Exception {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _cancellingReservationIds.remove(reservation.id);
+      });
+
+      _showMessage('Ocurrio un error inesperado al cancelar la reserva.');
+    }
+  }
+
+  /// Muestra un mensaje temporal dentro de la pantalla.
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Formatea una fecha para mostrarla al usuario.
+  String _formatDate(DateTime value) {
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+
+    return '$day/$month/${value.year}';
+  }
+
+  /// Formatea una hora para mostrarla al usuario.
+  String _formatTime(DateTime value) {
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+
+    return '$hour:$minute';
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -155,7 +288,15 @@ class _UpcomingReservationsScreenState
           return const SizedBox(height: 12);
         },
         itemBuilder: (context, index) {
-          return _UpcomingReservationCard(reservation: _reservations[index]);
+          final reservation = _reservations[index];
+
+          return _UpcomingReservationCard(
+            reservation: reservation,
+            isCancelling: _cancellingReservationIds.contains(reservation.id),
+            onCancel: () {
+              _cancelReservation(reservation);
+            },
+          );
         },
       ),
     );
@@ -164,9 +305,15 @@ class _UpcomingReservationsScreenState
 
 /// Muestra una proxima reserva.
 class _UpcomingReservationCard extends StatelessWidget {
-  const _UpcomingReservationCard({required this.reservation});
+  const _UpcomingReservationCard({
+    required this.reservation,
+    required this.isCancelling,
+    required this.onCancel,
+  });
 
   final Reservation reservation;
+  final bool isCancelling;
+  final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -232,6 +379,24 @@ class _UpcomingReservationCard extends StatelessWidget {
               text:
                   '${_formatTime(localStart)}'
                   ' - ${_formatTime(localEnd)}',
+            ),
+
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                key: ValueKey('cancel-reservation-${reservation.id}'),
+                onPressed: isCancelling ? null : onCancel,
+                icon: isCancelling
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.cancel_outlined),
+                label: Text(
+                  isCancelling ? 'Cancelando...' : 'Cancelar reserva',
+                ),
+              ),
             ),
           ],
         ),
