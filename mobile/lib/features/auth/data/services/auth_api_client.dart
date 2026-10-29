@@ -30,6 +30,9 @@ class AuthApiException implements Exception {
   /// Indica que el correo ya pertenece a otra cuenta.
   bool get isConflict => statusCode == 409;
 
+  /// Indica que se alcanzo un limite temporal de intentos.
+  bool get isTooManyRequests => statusCode == 429;
+
   /// Indica que los datos enviados no superaron la validacion.
   bool get isValidationError => statusCode == 422;
 
@@ -107,6 +110,59 @@ class AuthApiClient {
         response,
         invalidMessage: 'La API devolvio una sesion invalida.',
       ),
+    );
+  }
+
+  /// Solicita un codigo mediante POST /auth/password-recovery/request.
+  ///
+  /// El backend devuelve siempre un mensaje generico para no revelar
+  /// si el correo pertenece a una cuenta registrada.
+  Future<String> requestPasswordRecovery({required String email}) async {
+    final uri = Uri.parse('$baseUrl/auth/password-recovery/request');
+
+    final response = await _sendRequest(
+      () => _httpClient.post(
+        uri,
+        headers: _jsonHeaders,
+        body: jsonEncode({'email': email.trim().toLowerCase()}),
+      ),
+    );
+
+    return _decodeMessage(
+      response,
+      invalidMessage: 'La API devolvio una respuesta de recuperacion invalida.',
+    );
+  }
+
+  /// Confirma el codigo y establece una nueva contrasena.
+  ///
+  /// La nueva contrasena se envia dos veces para que FastAPI compruebe
+  /// que ambos valores coincidan antes de modificar la cuenta.
+  Future<String> confirmPasswordRecovery({
+    required String email,
+    required String code,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async {
+    final uri = Uri.parse('$baseUrl/auth/password-recovery/confirm');
+
+    final response = await _sendRequest(
+      () => _httpClient.post(
+        uri,
+        headers: _jsonHeaders,
+        body: jsonEncode({
+          'email': email.trim().toLowerCase(),
+          'code': code.trim(),
+          'new_password': newPassword,
+          'new_password_confirmation': newPasswordConfirmation,
+        }),
+      ),
+    );
+
+    return _decodeMessage(
+      response,
+      invalidMessage:
+          'La API devolvio una confirmacion de recuperacion invalida.',
     );
   }
 
@@ -204,6 +260,28 @@ class AuthApiClient {
     );
   }
 
+  /// Obtiene el campo message de una respuesta exitosa.
+  String _decodeMessage(
+    http.Response response, {
+    required String invalidMessage,
+  }) {
+    final decodedBody = _decodeJsonObject(
+      response,
+      invalidMessage: invalidMessage,
+    );
+
+    final message = decodedBody['message'];
+
+    if (message is! String || message.trim().isEmpty) {
+      throw AuthApiException(
+        message: invalidMessage,
+        statusCode: response.statusCode,
+      );
+    }
+
+    return message.trim();
+  }
+
   /// Obtiene el mensaje detail devuelto por FastAPI.
   ///
   /// Las validaciones 422 pueden devolver detail como una lista. En ese
@@ -241,11 +319,12 @@ class AuthApiClient {
   /// Traduce codigos conocidos cuando la API no entrega detail.
   String _defaultErrorMessage(int statusCode) {
     return switch (statusCode) {
-      400 => 'No se pudo actualizar el perfil.',
+      400 => 'La solicitud no pudo completarse.',
       401 => 'Las credenciales o la sesion no son validas.',
       403 => 'La cuenta de usuario se encuentra inactiva.',
       409 => 'El correo ya pertenece a una cuenta registrada.',
       422 => 'Los datos enviados no son validos.',
+      429 => 'Se alcanzo la cantidad maxima de intentos.',
       _ => 'La API no pudo completar la operacion solicitada.',
     };
   }
