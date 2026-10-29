@@ -205,4 +205,61 @@ void main() {
     expect(find.text('Espacio deportivo 8'), findsOneWidget);
     expect(find.text('Confirmada'), findsOneWidget);
   });
+
+  testWidgets('abre la recuperacion de contrasena desde el login', (
+    tester,
+  ) async {
+    final httpClient = MockClient((request) async {
+      throw StateError('No debe realizar solicitudes HTTP.');
+    });
+
+    final authController = AuthController(
+      apiClient: AuthApiClient(
+        httpClient: httpClient,
+        baseUrl: 'http://example.test',
+      ),
+      sessionStorage: MemorySessionStorage(),
+    );
+
+    addTearDown(authController.dispose);
+
+    await tester.pumpWidget(ClubApp(authController: authController));
+    await tester.pumpAndSettle();
+
+    final recoveryButton = find.byKey(
+      const Key('login-show-password-recovery'),
+    );
+
+    expect(recoveryButton, findsOneWidget);
+
+    await tester.ensureVisible(recoveryButton);
+    await tester.pumpAndSettle();
+
+    await tester.tap(recoveryButton);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('password-recovery-screen')), findsOneWidget);
+    expect(
+      find.byKey(const Key('password-recovery-email-field')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('password-recovery-request-submit')),
+      findsOneWidget,
+    );
+    expect(find.text('Recuperar contrasena'), findsWidgets);
+    expect(find.byKey(const Key('login-email-field')), findsNothing);
+
+    final backButton = find.byKey(const Key('password-recovery-back-login'));
+
+    await tester.ensureVisible(backButton);
+    await tester.pumpAndSettle();
+
+    await tester.tap(backButton);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('password-recovery-screen')), findsNothing);
+    expect(find.byKey(const Key('login-email-field')), findsOneWidget);
+    expect(find.byKey(const Key('login-submit')), findsOneWidget);
+  });
 }

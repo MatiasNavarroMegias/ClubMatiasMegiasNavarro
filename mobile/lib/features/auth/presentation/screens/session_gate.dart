@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../reservations/data/services/reservation_api_client.dart';
 import '../../../venues/data/services/venue_api_client.dart';
 import '../controllers/auth_controller.dart';
+
 import 'authenticated_shell.dart';
 import 'login_screen.dart';
+import 'password_recovery_screen.dart';
 import 'registration_screen.dart';
 
 /// Decide que pantalla debe mostrarse segun el estado de la sesion.
@@ -88,6 +90,35 @@ class _SessionGateState extends State<SessionGate> {
     });
   }
 
+  /// Abre el flujo de recuperacion de contrasena.
+  Future<void> _openPasswordRecovery() async {
+    widget.authController.clearError();
+
+    final recoveryCompleted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (context) {
+          return const PasswordRecoveryScreen();
+        },
+      ),
+    );
+
+    if (!mounted || recoveryCompleted != true) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          key: Key('password-recovery-completed-snackbar'),
+          content: Text(
+            'La contrasena fue actualizada. '
+            'Ya podes iniciar sesion.',
+          ),
+        ),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     return switch (widget.authController.status) {
@@ -106,6 +137,7 @@ class _SessionGateState extends State<SessionGate> {
             : LoginScreen(
                 authController: widget.authController,
                 onShowRegistration: _openRegistration,
+                onShowPasswordRecovery: _openPasswordRecovery,
               ),
     };
   }

@@ -10,6 +10,7 @@ class LoginScreen extends StatefulWidget {
   const LoginScreen({
     required this.authController,
     required this.onShowRegistration,
+    required this.onShowPasswordRecovery,
     super.key,
   });
 
@@ -18,6 +19,9 @@ class LoginScreen extends StatefulWidget {
 
   /// Accion utilizada para mostrar la pantalla de registro.
   final VoidCallback onShowRegistration;
+
+  /// Accion utilizada para abrir la recuperacion de contrasena.
+  final VoidCallback onShowPasswordRecovery;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -198,6 +202,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             widget.authController.clearError();
                           },
                         ),
+
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            key: const Key('login-show-password-recovery'),
+                            onPressed: isLoading
+                                ? null
+                                : widget.onShowPasswordRecovery,
+                            child: const Text('No recuerdo mi contrasena'),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
                         const SizedBox(height: 24),
                         FilledButton(
                           key: const Key('login-submit'),
@@ -221,7 +238,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           onPressed: isLoading
                               ? null
                               : widget.onShowRegistration,
-                          child: const Text('¿No tenes una cuenta? Registrate'),
+                          child: const Text('No tenes una cuenta? Registrate'),
                         ),
                       ],
                     ),
