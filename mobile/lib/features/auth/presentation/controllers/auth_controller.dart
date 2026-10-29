@@ -55,6 +55,13 @@ class AuthController extends ChangeNotifier {
   /// Usuario autenticado o null si no existe una sesion valida.
   AuthenticatedUser? get currentUser => _currentUser;
 
+  /// Token de acceso utilizado por las operaciones autenticadas.
+  ///
+  /// El valor solamente puede leerse desde fuera del controlador.
+  /// AuthController continua siendo el unico responsable de guardarlo,
+  /// actualizarlo y eliminarlo.
+  String? get accessToken => _accessToken;
+
   /// Ultimo mensaje de error visible para la interfaz.
   String? get errorMessage => _errorMessage;
 

@@ -47,6 +47,7 @@ void main() {
 
     expect(controller.status, AuthStatus.unauthenticated);
     expect(controller.currentUser, isNull);
+    expect(controller.accessToken, isNull);
     expect(controller.errorMessage, isNull);
     expect(controller.isLoading, isFalse);
 
@@ -74,6 +75,7 @@ void main() {
     expect(controller.status, AuthStatus.authenticated);
     expect(controller.currentUser?.id, 7);
     expect(controller.currentUser?.email, 'matias@example.com');
+    expect(controller.accessToken, 'stored-token');
     expect(controller.errorMessage, isNull);
 
     controller.dispose();
@@ -98,6 +100,7 @@ void main() {
 
     expect(controller.status, AuthStatus.unauthenticated);
     expect(controller.currentUser, isNull);
+    expect(controller.accessToken, isNull);
     expect(await sessionStorage.readToken(), isNull);
 
     controller.dispose();
@@ -144,6 +147,7 @@ void main() {
     expect(requestCount, 2);
     expect(controller.status, AuthStatus.authenticated);
     expect(controller.currentUser?.fullName, 'Matias Megias Navarro');
+    expect(controller.accessToken, 'signed-token');
     expect(await sessionStorage.readToken(), 'signed-token');
 
     controller.dispose();
@@ -172,6 +176,7 @@ void main() {
     expect(result, isFalse);
     expect(controller.status, AuthStatus.unauthenticated);
     expect(controller.currentUser, isNull);
+    expect(controller.accessToken, isNull);
     expect(controller.errorMessage, 'Correo o contrasena incorrectos.');
     expect(await sessionStorage.readToken(), isNull);
 
@@ -232,6 +237,7 @@ void main() {
     expect(requestCount, 3);
     expect(controller.status, AuthStatus.authenticated);
     expect(controller.currentUser?.id, 7);
+    expect(controller.accessToken, 'registration-token');
     expect(await sessionStorage.readToken(), 'registration-token');
 
     controller.dispose();
@@ -308,6 +314,7 @@ void main() {
     expect(result, isFalse);
     expect(controller.status, AuthStatus.unauthenticated);
     expect(controller.currentUser, isNull);
+    expect(controller.accessToken, isNull);
     expect(await sessionStorage.readToken(), isNull);
 
     controller.dispose();
@@ -355,12 +362,15 @@ void main() {
       }),
       sessionStorage: sessionStorage,
     );
-
     await controller.initialize();
+
+    expect(controller.accessToken, 'stored-token');
+
     await controller.logout();
 
     expect(controller.status, AuthStatus.unauthenticated);
     expect(controller.currentUser, isNull);
+    expect(controller.accessToken, isNull);
     expect(controller.errorMessage, isNull);
     expect(await sessionStorage.readToken(), isNull);
 
