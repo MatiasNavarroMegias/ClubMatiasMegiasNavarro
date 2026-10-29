@@ -385,5 +385,178 @@ void main() {
 
       apiClient.close();
     });
+
+    test('requestPasswordRecovery normaliza el correo', () async {
+      final httpClient = MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(
+          request.url.toString(),
+          '$baseUrl/auth/password-recovery/request',
+        );
+        expect(request.headers['Accept'], 'application/json');
+        expect(request.headers['Content-Type'], 'application/json');
+
+        final requestBody = jsonDecode(request.body) as Map<String, dynamic>;
+
+        expect(requestBody, {'email': 'matias@example.com'});
+
+        return http.Response(
+          jsonEncode({
+            'message':
+                'Si el correo pertenece a una cuenta, '
+                'recibiras instrucciones para recuperar '
+                'la contrasena.',
+          }),
+          200,
+        );
+      });
+
+      final apiClient = AuthApiClient(httpClient: httpClient, baseUrl: baseUrl);
+
+      final message = await apiClient.requestPasswordRecovery(
+        email: ' MATIAS@EXAMPLE.COM ',
+      );
+
+      expect(
+        message,
+        'Si el correo pertenece a una cuenta, '
+        'recibiras instrucciones para recuperar '
+        'la contrasena.',
+      );
+
+      apiClient.close();
+    });
+
+    test('confirmPasswordRecovery envia el codigo y las contrasenas', () async {
+      final httpClient = MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(
+          request.url.toString(),
+          '$baseUrl/auth/password-recovery/confirm',
+        );
+
+        final requestBody = jsonDecode(request.body) as Map<String, dynamic>;
+
+        expect(requestBody, {
+          'email': 'matias@example.com',
+          'code': '48392175',
+          'new_password': 'NuevaClave123',
+          'new_password_confirmation': 'NuevaClave123',
+        });
+
+        return http.Response(
+          jsonEncode({
+            'message': 'La contrasena fue actualizada correctamente.',
+          }),
+          200,
+        );
+      });
+
+      final apiClient = AuthApiClient(httpClient: httpClient, baseUrl: baseUrl);
+
+      final message = await apiClient.confirmPasswordRecovery(
+        email: ' MATIAS@EXAMPLE.COM ',
+        code: ' 48392175 ',
+        newPassword: 'NuevaClave123',
+        newPasswordConfirmation: 'NuevaClave123',
+      );
+
+      expect(message, 'La contrasena fue actualizada correctamente.');
+
+      apiClient.close();
+    });
+
+    test('confirmPasswordRecovery conserva el error 400', () async {
+      final httpClient = MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'detail':
+                'El codigo de recuperacion no es '
+                'valido o ha vencido.',
+          }),
+          400,
+        );
+      });
+
+      final apiClient = AuthApiClient(httpClient: httpClient, baseUrl: baseUrl);
+
+      expect(
+        apiClient.confirmPasswordRecovery(
+          email: 'matias@example.com',
+          code: '48392175',
+          newPassword: 'NuevaClave123',
+          newPasswordConfirmation: 'NuevaClave123',
+        ),
+        throwsA(
+          isA<AuthApiException>()
+              .having((error) => error.statusCode, 'statusCode', 400)
+              .having(
+                (error) => error.message,
+                'message',
+                'El codigo de recuperacion no es '
+                    'valido o ha vencido.',
+              ),
+        ),
+      );
+
+      apiClient.close();
+    });
+
+    test('confirmPasswordRecovery identifica el limite de intentos', () async {
+      final httpClient = MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'detail':
+                'El codigo de recuperacion supero '
+                'la cantidad maxima de intentos.',
+          }),
+          429,
+        );
+      });
+
+      final apiClient = AuthApiClient(httpClient: httpClient, baseUrl: baseUrl);
+
+      expect(
+        apiClient.confirmPasswordRecovery(
+          email: 'matias@example.com',
+          code: '48392175',
+          newPassword: 'NuevaClave123',
+          newPasswordConfirmation: 'NuevaClave123',
+        ),
+        throwsA(
+          isA<AuthApiException>()
+              .having((error) => error.statusCode, 'statusCode', 429)
+              .having(
+                (error) => error.isTooManyRequests,
+                'isTooManyRequests',
+                isTrue,
+              ),
+        ),
+      );
+
+      apiClient.close();
+    });
+
+    test('requestPasswordRecovery rechaza un mensaje invalido', () async {
+      final httpClient = MockClient((request) async {
+        return http.Response(jsonEncode({'unexpected': 'value'}), 200);
+      });
+
+      final apiClient = AuthApiClient(httpClient: httpClient, baseUrl: baseUrl);
+
+      expect(
+        apiClient.requestPasswordRecovery(email: 'matias@example.com'),
+        throwsA(
+          isA<AuthApiException>().having(
+            (error) => error.message,
+            'message',
+            'La API devolvio una respuesta '
+                'de recuperacion invalida.',
+          ),
+        ),
+      );
+
+      apiClient.close();
+    });
   });
 }
