@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../reservations/data/services/reservation_api_client.dart';
-import '../../../reservations/presentation/screens/upcoming_reservations_screen.dart';
+import '../../../reservations/presentation/screens/reservations_screen.dart';
 import '../../../venues/data/services/venue_api_client.dart';
 import '../../../venues/presentation/screens/venue_list_screen.dart';
 import '../controllers/auth_controller.dart';
@@ -182,7 +182,7 @@ class _BuildReservationsSection extends StatelessWidget {
       return const _ReservationsSessionUnavailableView();
     }
 
-    return UpcomingReservationsScreen(accessToken: token, apiClient: apiClient);
+    return ReservationsScreen(accessToken: token, apiClient: apiClient);
   }
 }
 

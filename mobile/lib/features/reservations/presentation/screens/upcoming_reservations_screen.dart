@@ -11,6 +11,7 @@ class UpcomingReservationsScreen extends StatefulWidget {
   const UpcomingReservationsScreen({
     required this.accessToken,
     this.apiClient,
+    this.showAppBar = true,
     super.key,
   });
 
@@ -19,6 +20,12 @@ class UpcomingReservationsScreen extends StatefulWidget {
 
   /// Cliente reemplazable durante las pruebas automatizadas.
   final ReservationApiClient? apiClient;
+
+  /// Indica si la pantalla debe mostrar su propia barra superior.
+  ///
+  /// El contenedor de reservas utiliza false porque ya posee un AppBar
+  /// con las pestañas Proximas e Historial.
+  final bool showAppBar;
 
   @override
   State<UpcomingReservationsScreen> createState() {
@@ -248,11 +255,13 @@ class _UpcomingReservationsScreenState
     return Scaffold(
       key: const Key('upcoming-reservations-screen'),
       backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        title: const Text('Mis reservas'),
-        backgroundColor: colorScheme.surface,
-        surfaceTintColor: Colors.transparent,
-      ),
+      appBar: widget.showAppBar
+          ? AppBar(
+              title: const Text('Mis reservas'),
+              backgroundColor: colorScheme.surface,
+              surfaceTintColor: Colors.transparent,
+            )
+          : null,
       body: SafeArea(child: _buildBody()),
     );
   }
