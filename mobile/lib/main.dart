@@ -2,9 +2,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 
-import 'core/services/push_notification_service.dart';
-
 import 'app/app.dart';
+import 'core/services/push_notification_service.dart';
+import 'features/notifications/data/services/push_installation_store.dart';
 import 'firebase_options.dart';
 
 /// Maneja mensajes recibidos cuando la aplicacion esta cerrada
@@ -20,7 +20,12 @@ Future<void> main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  await PushNotificationService.initialize();
 
-  runApp(const ClubApp());
+  final pushInstallationStore = PushInstallationStore();
+
+  await PushNotificationService.initialize(
+    installationStore: pushInstallationStore,
+  );
+
+  runApp(ClubApp(pushInstallationStore: pushInstallationStore));
 }

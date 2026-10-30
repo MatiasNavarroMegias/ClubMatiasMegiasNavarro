@@ -2,6 +2,8 @@ import 'dart:developer' as developer;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 
+import '../../features/notifications/data/services/push_installation_store.dart';
+
 /// Administra el registro y la recepcion de notificaciones push.
 ///
 /// La clase utiliza una unica instancia porque Firebase Messaging
@@ -13,7 +15,9 @@ class PushNotificationService {
 
   /// Solicita permiso, registra la instalacion y configura
   /// los eventos relacionados con las notificaciones.
-  static Future<void> initialize() async {
+  static Future<void> initialize({
+    required PushInstallationStore installationStore,
+  }) async {
     final settings = await _messaging.requestPermission();
 
     developer.log(
@@ -21,7 +25,7 @@ class PushNotificationService {
       name: 'PushNotificationService',
     );
 
-    _listenForRegistration();
+    _listenForRegistration(installationStore: installationStore);
     _listenForForegroundMessages();
     _listenForOpenedNotifications();
 
@@ -30,13 +34,17 @@ class PushNotificationService {
 
   /// Escucha el identificador de instalacion asignado por Firebase.
   ///
-  /// Mas adelante enviaremos este identificador al backend para
-  /// asociarlo con el usuario autenticado.
-  static void _listenForRegistration() {
+  /// El valor se conserva para enviarlo al backend una vez que exista
+  /// una sesion autenticada.
+  static void _listenForRegistration({
+    required PushInstallationStore installationStore,
+  }) {
     FirebaseMessaging.instance.onRegistered.listen(
       (installationId) {
+        installationStore.update(installationId);
+
         developer.log(
-          'Firebase Installation ID: $installationId',
+          'Firebase Installation ID recibido.',
           name: 'PushNotificationService',
         );
       },

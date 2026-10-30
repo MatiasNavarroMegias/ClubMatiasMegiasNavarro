@@ -7,6 +7,7 @@ import '../features/auth/presentation/controllers/auth_controller.dart';
 import '../features/auth/presentation/screens/session_gate.dart';
 import '../features/venues/data/services/venue_api_client.dart';
 import 'theme/app_theme.dart';
+import '../features/notifications/data/services/push_installation_store.dart';
 
 /// Widget principal de ClubMatiasMegiasNavarro.
 ///
@@ -18,6 +19,7 @@ class ClubApp extends StatefulWidget {
     this.authController,
     this.venueApiClient,
     this.reservationApiClient,
+    this.pushInstallationStore,
   });
 
   /// Controlador opcional utilizado durante las pruebas.
@@ -31,6 +33,12 @@ class ClubApp extends StatefulWidget {
 
   /// Cliente opcional utilizado por el flujo de reservas.
   final ReservationApiClient? reservationApiClient;
+
+  /// Almacenamiento temporal del identificador de Firebase.
+  ///
+  /// En produccion se recibe desde main para compartir la misma
+  /// instancia utilizada por PushNotificationService.
+  final PushInstallationStore? pushInstallationStore;
 
   @override
   State<ClubApp> createState() => _ClubAppState();
