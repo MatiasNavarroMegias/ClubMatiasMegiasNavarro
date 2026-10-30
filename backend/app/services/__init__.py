@@ -18,6 +18,7 @@ from app.services.password_recovery import (
     PasswordRecoveryAttemptsExceededError,
     PasswordRecoveryService,
 )
+from app.services.push_device import PushDeviceService
 from app.services.recovery_notifier import (
     DevelopmentRecoveryCodeNotifier,
     RecoveryCodeNotifier,
@@ -55,6 +56,7 @@ __all__ = [
     "InvalidPasswordRecoveryCodeError",
     "PasswordRecoveryAttemptsExceededError",
     "PasswordRecoveryService",
+    "PushDeviceService",
     "RecoveryCodeNotifier",
     "AuthService",
     "AvailabilityDateInPastError",
