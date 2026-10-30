@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.models.password_recovery_token import (
         PasswordRecoveryToken,
     )
+    from app.models.push_device import PushDevice
     from app.models.reservation import Reservation
 
 
@@ -102,6 +103,16 @@ class User(Base):
     # Los registros se eliminan si el usuario se elimina fisicamente,
     # porque no forman parte del historial funcional de la aplicacion.
     password_recovery_tokens: Mapped[list[PasswordRecoveryToken]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    # Instalaciones registradas para recibir notificaciones push.
+    #
+    # Los registros se eliminan si el usuario se elimina fisicamente,
+    # porque no forman parte del historial funcional de la aplicacion.
+    push_devices: Mapped[list[PushDevice]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
