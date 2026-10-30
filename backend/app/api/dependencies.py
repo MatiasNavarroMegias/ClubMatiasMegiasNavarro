@@ -16,6 +16,7 @@ from app.core.security import (
 from app.models import User
 from app.repositories import (
     PasswordRecoveryRepository,
+    PushDeviceRepository,
     ReservationRepository,
     SportsSpaceRepository,
     UserRepository,
@@ -26,6 +27,7 @@ from app.services import (
     AvailabilityService,
     DevelopmentRecoveryCodeNotifier,
     PasswordRecoveryService,
+    PushDeviceService,
     ReservationService,
     SportsSpaceService,
     VenueService,
@@ -136,6 +138,30 @@ def get_password_recovery_service(
         notifier=notifier,
         expiration_minutes=15,
         maximum_attempts=5,
+    )
+
+
+def get_push_device_service(
+    database_session: DatabaseSession,
+) -> PushDeviceService:
+    """
+    Construye el servicio de instalaciones push.
+
+    La sesion de SQLAlchemy se utiliza para consultar, crear y
+    actualizar las instalaciones asociadas con los usuarios.
+
+    Args:
+        database_session: Sesion asociada a la solicitud actual.
+
+    Returns:
+        Servicio preparado para registrar instalaciones push.
+    """
+    repository = PushDeviceRepository(
+        database_session,
+    )
+
+    return PushDeviceService(
+        repository=repository,
     )
 
 
@@ -349,20 +375,8 @@ PasswordRecoveryServiceDependency = Annotated[
     Depends(get_password_recovery_service),
 ]
 
-# Tipo reutilizable para inyectar AuthService en los endpoints.
-AuthServiceDependency = Annotated[
-    AuthService,
-    Depends(get_auth_service),
-]
-
-# Tipo reutilizable para inyectar PasswordRecoveryService.
-PasswordRecoveryServiceDependency = Annotated[
-    PasswordRecoveryService,
-    Depends(get_password_recovery_service),
-]
-
-# Tipo reutilizable para inyectar el usuario autenticado.
-CurrentUser = Annotated[
-    User,
-    Depends(get_current_user),
+# Tipo reutilizable para inyectar PushDeviceService.
+PushDeviceServiceDependency = Annotated[
+    PushDeviceService,
+    Depends(get_push_device_service),
 ]

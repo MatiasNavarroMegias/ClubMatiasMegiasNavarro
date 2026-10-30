@@ -1,6 +1,7 @@
 """Rutas HTTP disponibles en la API."""
 
 from app.api.routes.auth import router as auth_router
+from app.api.routes.push_devices import router as push_devices_router
 from app.api.routes.reservations import router as reservations_router
 from app.api.routes.sports_spaces import (
     router as sports_spaces_router,
@@ -10,6 +11,7 @@ from app.api.routes.venues import router as venues_router
 
 __all__ = [
     "auth_router",
+    "push_devices_router",
     "reservations_router",
     "sports_spaces_router",
     "users_router",

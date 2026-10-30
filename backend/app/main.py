@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from app.api.routes import (
     auth_router,
+    push_devices_router,
     reservations_router,
     sports_spaces_router,
     users_router,
@@ -24,6 +25,7 @@ app.include_router(users_router)
 app.include_router(venues_router)
 app.include_router(sports_spaces_router)
 app.include_router(reservations_router)
+app.include_router(push_devices_router)
 
 
 @app.get("/health", tags=["Health"])

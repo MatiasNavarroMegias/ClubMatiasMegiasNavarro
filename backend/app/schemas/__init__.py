@@ -5,6 +5,10 @@ from app.schemas.password_recovery import (
     PasswordRecoveryMessage,
     PasswordRecoveryRequest,
 )
+from app.schemas.push_device import (
+    PushDeviceRegister,
+    PushDeviceResponse,
+)
 from app.schemas.reservation import (
     AvailabilitySlotResponse,
     ReservationCreate,
@@ -33,6 +37,8 @@ __all__ = [
     "PasswordRecoveryConfirm",
     "PasswordRecoveryMessage",
     "PasswordRecoveryRequest",
+    "PushDeviceRegister",
+    "PushDeviceResponse",
     "ReservationCreate",
     "ReservationResponse",
     "SportsSpaceCreate",
