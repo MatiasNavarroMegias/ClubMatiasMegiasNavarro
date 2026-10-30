@@ -8,6 +8,7 @@ import '../features/auth/presentation/screens/session_gate.dart';
 import '../features/venues/data/services/venue_api_client.dart';
 import 'theme/app_theme.dart';
 import '../features/notifications/data/services/push_installation_store.dart';
+import '../features/notifications/data/services/push_device_api_client.dart';
 
 /// Widget principal de ClubMatiasMegiasNavarro.
 ///
@@ -58,6 +59,8 @@ class _ClubAppState extends State<ClubApp> {
         AuthController(
           apiClient: AuthApiClient(),
           sessionStorage: SecureSessionStorage(),
+          pushDeviceApiClient: PushDeviceApiClient(),
+          pushInstallationStore: widget.pushInstallationStore,
         );
   }
 

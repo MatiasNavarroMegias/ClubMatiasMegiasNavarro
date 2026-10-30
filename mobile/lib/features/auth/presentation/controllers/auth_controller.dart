@@ -1,5 +1,10 @@
+import 'dart:async';
+import 'dart:developer' as developer;
+
 import 'package:flutter/foundation.dart';
 
+import '../../../notifications/data/services/push_device_api_client.dart';
+import '../../../notifications/data/services/push_installation_store.dart';
 import '../../data/models/authenticated_user.dart';
 import '../../data/models/profile_update_data.dart';
 import '../../data/models/registration_data.dart';
@@ -33,16 +38,33 @@ class AuthController extends ChangeNotifier {
   factory AuthController({
     required AuthApiClient apiClient,
     required SessionStorage sessionStorage,
+    PushDeviceApiClient? pushDeviceApiClient,
+    PushInstallationStore? pushInstallationStore,
   }) {
-    return AuthController._(apiClient, sessionStorage);
+    return AuthController._(
+      apiClient,
+      sessionStorage,
+      pushDeviceApiClient,
+      pushInstallationStore,
+    );
   }
 
-  /// Constructor interno que asigna las dependencias mediante
-  /// initializing formals.
-  AuthController._(this._apiClient, this._sessionStorage);
+  AuthController._(
+    this._apiClient,
+    this._sessionStorage,
+    this._pushDeviceApiClient,
+    this._pushInstallationStore,
+  ) {
+    _pushInstallationSubscription = _pushInstallationStore?.installationIds
+        .listen(_handleInstallationId);
+  }
 
   final AuthApiClient _apiClient;
   final SessionStorage _sessionStorage;
+  final PushDeviceApiClient? _pushDeviceApiClient;
+  final PushInstallationStore? _pushInstallationStore;
+
+  StreamSubscription<String>? _pushInstallationSubscription;
 
   AuthStatus _status = AuthStatus.initializing;
   AuthenticatedUser? _currentUser;
@@ -89,6 +111,8 @@ class AuthController extends ChangeNotifier {
       _currentUser = user;
       _status = AuthStatus.authenticated;
       notifyListeners();
+
+      await _registerCurrentPushDevice();
     } on AuthApiException {
       // Si el token almacenado vencio, fue alterado o ya no identifica
       // una cuenta valida, se elimina para evitar reutilizarlo.
@@ -119,6 +143,8 @@ class AuthController extends ChangeNotifier {
       _status = AuthStatus.authenticated;
       _errorMessage = null;
       notifyListeners();
+
+      await _registerCurrentPushDevice();
 
       return true;
     } on AuthApiException catch (error) {
@@ -162,6 +188,8 @@ class AuthController extends ChangeNotifier {
       _status = AuthStatus.authenticated;
       _errorMessage = null;
       notifyListeners();
+
+      await _registerCurrentPushDevice();
 
       return true;
     } on AuthApiException catch (error) {
@@ -261,6 +289,55 @@ class AuthController extends ChangeNotifier {
     _setUnauthenticated();
   }
 
+  /// Intenta registrar el identificador conservado actualmente.
+  ///
+  /// La autenticacion no falla si Firebase todavia no entrego un FID
+  /// o si el backend no puede registrar las notificaciones.
+  Future<void> _registerCurrentPushDevice() async {
+    final installationId = _pushInstallationStore?.currentInstallationId;
+
+    if (installationId == null) {
+      return;
+    }
+
+    await _registerPushDevice(installationId);
+  }
+
+  /// Registra una instalacion cuando existe una sesion valida.
+  ///
+  /// Los errores push se registran para diagnostico, pero no modifican
+  /// el estado de autenticacion ni muestran un error en la interfaz.
+  Future<void> _registerPushDevice(String installationId) async {
+    final accessToken = _accessToken;
+    final pushDeviceApiClient = _pushDeviceApiClient;
+
+    if (_status != AuthStatus.authenticated ||
+        accessToken == null ||
+        pushDeviceApiClient == null) {
+      return;
+    }
+
+    try {
+      await pushDeviceApiClient.register(
+        accessToken: accessToken,
+        installationId: installationId,
+        platform: 'android',
+      );
+    } on PushDeviceApiException catch (error, stackTrace) {
+      developer.log(
+        'No se pudo registrar el dispositivo push.',
+        name: 'AuthController',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  /// Procesa un identificador entregado despues de autenticar al usuario.
+  void _handleInstallationId(String installationId) {
+    unawaited(_registerPushDevice(installationId));
+  }
+
   /// Limpia un error despues de mostrarlo o editar el formulario.
   void clearError() {
     if (_errorMessage == null) {
@@ -288,9 +365,15 @@ class AuthController extends ChangeNotifier {
 
   @override
   void dispose() {
-    // AuthController es propietario del cliente recibido y libera sus
-    // recursos cuando deja de utilizarse.
+    // La cancelacion evita continuar escuchando identificadores cuando
+    // el controlador ya no forma parte de la aplicacion.
+    unawaited(_pushInstallationSubscription?.cancel());
+
+    // AuthController es propietario de los clientes recibidos y libera
+    // sus recursos cuando deja de utilizarse.
+    _pushDeviceApiClient?.close();
     _apiClient.close();
+
     super.dispose();
   }
 }
