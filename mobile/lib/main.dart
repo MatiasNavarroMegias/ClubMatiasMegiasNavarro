@@ -13,6 +13,7 @@ import 'firebase_options.dart';
 
 /// Maneja mensajes recibidos cuando la aplicacion esta cerrada
 /// o en segundo plano.
+@pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 }

@@ -1,6 +1,7 @@
 import 'dart:developer' as developer;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../features/notifications/data/services/push_installation_store.dart';
 import 'local_notification_service.dart';
@@ -20,21 +21,52 @@ class PushNotificationService {
     required PushInstallationStore installationStore,
     LocalNotificationClient? localNotificationClient,
   }) async {
-    final settings = await _messaging.requestPermission();
     final notificationClient =
         localNotificationClient ?? FlutterLocalNotificationClient();
 
-    developer.log(
-      'Estado del permiso: ${settings.authorizationStatus}',
-      name: 'PushNotificationService',
-    );
-
-    await notificationClient.initialize();
+    // Los listeners se registran primero para no perder mensajes si una
+    // inicializacion nativa demora o falla.
     _listenForRegistration(installationStore: installationStore);
     _listenForForegroundMessages(notificationClient);
     _listenForOpenedNotifications();
 
-    await _messaging.register();
+    try {
+      await notificationClient.initialize();
+    } on Object catch (error, stackTrace) {
+      developer.log(
+        'No se pudieron inicializar las notificaciones locales.',
+        name: 'PushNotificationService',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    try {
+      final settings = await _messaging.requestPermission();
+
+      developer.log(
+        'Estado del permiso: ${settings.authorizationStatus}',
+        name: 'PushNotificationService',
+      );
+    } on Object catch (error, stackTrace) {
+      developer.log(
+        'No se pudo solicitar el permiso de notificaciones.',
+        name: 'PushNotificationService',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    try {
+      await _messaging.register();
+    } on Object catch (error, stackTrace) {
+      developer.log(
+        'No se pudo registrar la instalacion en Firebase.',
+        name: 'PushNotificationService',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   /// Escucha el identificador de instalacion asignado por Firebase.
@@ -69,6 +101,10 @@ class PushNotificationService {
     LocalNotificationClient notificationClient,
   ) {
     FirebaseMessaging.onMessage.listen((message) async {
+      debugPrint(
+        'FCM_FOREGROUND: ${message.notification?.title ?? 'Sin titulo'}',
+      );
+
       developer.log(
         'Notificacion recibida en primer plano: '
         '${message.notification?.title ?? 'Sin titulo'}',
