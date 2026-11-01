@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../../features/notifications/data/services/push_installation_store.dart';
+import 'local_notification_service.dart';
 
 /// Administra el registro y la recepcion de notificaciones push.
 ///
@@ -17,16 +18,20 @@ class PushNotificationService {
   /// los eventos relacionados con las notificaciones.
   static Future<void> initialize({
     required PushInstallationStore installationStore,
+    LocalNotificationClient? localNotificationClient,
   }) async {
     final settings = await _messaging.requestPermission();
+    final notificationClient =
+        localNotificationClient ?? FlutterLocalNotificationClient();
 
     developer.log(
       'Estado del permiso: ${settings.authorizationStatus}',
       name: 'PushNotificationService',
     );
 
+    await notificationClient.initialize();
     _listenForRegistration(installationStore: installationStore);
-    _listenForForegroundMessages();
+    _listenForForegroundMessages(notificationClient);
     _listenForOpenedNotifications();
 
     await _messaging.register();
@@ -60,13 +65,35 @@ class PushNotificationService {
   }
 
   /// Escucha mensajes recibidos mientras la aplicacion esta abierta.
-  static void _listenForForegroundMessages() {
-    FirebaseMessaging.onMessage.listen((message) {
+  static void _listenForForegroundMessages(
+    LocalNotificationClient notificationClient,
+  ) {
+    FirebaseMessaging.onMessage.listen((message) async {
       developer.log(
         'Notificacion recibida en primer plano: '
         '${message.notification?.title ?? 'Sin titulo'}',
         name: 'PushNotificationService',
       );
+
+      final notification = message.notification;
+      if (notification == null) {
+        return;
+      }
+
+      try {
+        await notificationClient.show(
+          id: message.hashCode,
+          title: notification.title ?? 'ClubMatiasMegiasNavarro',
+          body: notification.body ?? '',
+        );
+      } on Object catch (error, stackTrace) {
+        developer.log(
+          'No se pudo mostrar la notificacion local.',
+          name: 'PushNotificationService',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
     });
   }
 

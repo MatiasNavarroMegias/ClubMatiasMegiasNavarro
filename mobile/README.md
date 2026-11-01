@@ -149,6 +149,19 @@ http: ^1.6.0
 
 Esta dependencia permite ejecutar solicitudes HTTP y utilizar clientes simulados durante las pruebas.
 
+## Notificaciones push
+
+Firebase Messaging registra la instalacion y recibe los mensajes de FCM. Cuando
+la aplicacion esta abierta, `LocalNotificationClient` muestra el mensaje en el
+canal Android `club_notifications`, configurado con importancia alta y sonido.
+La interfaz permite reemplazar la implementacion en las pruebas sin llamar a
+servicios reales.
+
+Cuando la aplicacion esta en segundo plano o cerrada, Android muestra
+automaticamente las notificaciones de tipo `notification` entregadas por FCM.
+Esto evita duplicar avisos: las notificaciones locales se reservan para el
+estado de primer plano.
+
 ## Configuracion de la API
 
 La direccion base se encuentra centralizada en:
