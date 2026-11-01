@@ -13,6 +13,7 @@ from app.services.availability import (
     AvailabilitySportsSpaceNotFoundError,
     AvailabilityVenueInactiveError,
 )
+from app.services.firebase_push_sender import FirebasePushSender
 from app.services.password_recovery import (
     InvalidPasswordRecoveryCodeError,
     PasswordRecoveryAttemptsExceededError,
@@ -36,6 +37,10 @@ from app.services.reservation import (
     ReservationTimeConflictError,
     ReservationVenueInactiveError,
 )
+from app.services.reservation_notification import (
+    ReservationNotificationService,
+    ReservationReminderService,
+)
 from app.services.sports_space import (
     SportsSpaceAlreadyExistsError,
     SportsSpaceNoChangesError,
@@ -57,6 +62,9 @@ __all__ = [
     "PasswordRecoveryAttemptsExceededError",
     "PasswordRecoveryService",
     "PushDeviceService",
+    "FirebasePushSender",
+    "ReservationNotificationService",
+    "ReservationReminderService",
     "RecoveryCodeNotifier",
     "AuthService",
     "AvailabilityDateInPastError",

@@ -60,6 +60,10 @@ class Settings(BaseSettings):
         gt=0,
     )
 
+    firebase_credentials_path: str | None = None
+    firebase_project_id: str | None = None
+    reminder_internal_secret: str | None = None
+
     @field_validator("app_timezone")
     @classmethod
     def validate_app_timezone(

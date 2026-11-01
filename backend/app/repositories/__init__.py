@@ -5,6 +5,7 @@ from app.repositories.password_recovery import (
 )
 from app.repositories.push_device import PushDeviceRepository
 from app.repositories.reservation import ReservationRepository
+from app.repositories.reservation_reminder import ReservationReminderRepository
 from app.repositories.sports_space import SportsSpaceRepository
 from app.repositories.user import UserRepository
 from app.repositories.venue import VenueRepository
@@ -13,6 +14,7 @@ __all__ = [
     "PasswordRecoveryRepository",
     "PushDeviceRepository",
     "ReservationRepository",
+    "ReservationReminderRepository",
     "SportsSpaceRepository",
     "UserRepository",
     "VenueRepository",

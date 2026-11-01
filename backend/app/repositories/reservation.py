@@ -271,3 +271,20 @@ class ReservationRepository:
         )
 
         return reservation
+
+    def list_confirmed_starting_between(
+        self,
+        *,
+        range_start: datetime,
+        range_end: datetime,
+    ) -> list[Reservation]:
+        statement = (
+            select(Reservation)
+            .where(
+                Reservation.status == "confirmed",
+                Reservation.start_at >= range_start,
+                Reservation.start_at <= range_end,
+            )
+            .order_by(Reservation.start_at)
+        )
+        return list(self.database_session.scalars(statement).all())

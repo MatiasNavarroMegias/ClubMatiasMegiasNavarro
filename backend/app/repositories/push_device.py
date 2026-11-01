@@ -77,3 +77,18 @@ class PushDeviceRepository:
         self.database_session.refresh(push_device)
 
         return push_device
+
+    def list_active_by_user_id(self, user_id: int) -> list[PushDevice]:
+        statement = (
+            select(PushDevice)
+            .where(
+                PushDevice.user_id == user_id,
+                PushDevice.is_active.is_(True),
+            )
+            .order_by(PushDevice.id)
+        )
+        return list(self.database_session.scalars(statement).all())
+
+    def deactivate(self, push_device: PushDevice) -> None:
+        push_device.is_active = False
+        self.save(push_device)
