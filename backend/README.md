@@ -217,6 +217,43 @@ El archivo `.env.example` se registra en Git porque documenta las variables nece
 
 El archivo `.env` se excluye mediante `.gitignore` porque contiene la configuracion real del entorno local.
 
+## Notificaciones Firebase
+
+Las notificaciones del backend utilizan Firebase Admin SDK y el Firebase
+Installation ID (FID) guardado por el endpoint de dispositivos push. No se
+registran credenciales ni FID completos en el repositorio o en los logs.
+
+Configurar en `backend/.env`:
+
+```env
+FIREBASE_CREDENTIALS_PATH=C:\ruta\local\firebase-admin-key.json
+FIREBASE_PROJECT_ID=club-matias-megias
+REMINDER_INTERNAL_SECRET=secreto-largo-local
+```
+
+Descargar la clave de cuenta de servicio desde Firebase Console y guardarla
+fuera del repositorio. La ruta `firebase-admin-key*.json` esta excluida por
+`.gitignore`; nunca se debe subir la clave.
+
+La creacion y cancelacion de reservas intentan enviar la notificacion despues
+de guardar el cambio. Un fallo de Firebase se registra y no revierte la
+reserva.
+
+### Recordatorios
+
+El endpoint interno procesa reservas confirmadas cuya hora de inicio esta
+entre 55 y 65 minutos desde el momento de ejecucion:
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/internal/reminders `
+  -H "X-Reminder-Secret: secreto-largo-local"
+```
+
+Se puede invocar desde una tarea programada cada cinco minutos. La tabla de
+recordatorios evita repetir el envio para una misma reserva. El endpoint solo
+debe exponerse dentro de la red de confianza y siempre debe usar HTTPS fuera
+del entorno local.
+
 ## Base de datos local
 
 El backend utiliza PostgreSQL como base de datos relacional y SQLAlchemy para administrar las conexiones desde Python.

@@ -17,6 +17,7 @@ from app.models import User
 from app.repositories import (
     PasswordRecoveryRepository,
     PushDeviceRepository,
+    ReservationReminderRepository,
     ReservationRepository,
     SportsSpaceRepository,
     UserRepository,
@@ -26,8 +27,11 @@ from app.services import (
     AuthService,
     AvailabilityService,
     DevelopmentRecoveryCodeNotifier,
+    FirebasePushSender,
     PasswordRecoveryService,
     PushDeviceService,
+    ReservationNotificationService,
+    ReservationReminderService,
     ReservationService,
     SportsSpaceService,
     VenueService,
@@ -325,10 +329,37 @@ def get_reservation_service(
     sports_space_repository = SportsSpaceRepository(
         database_session,
     )
+    notification_service = get_reservation_notification_service(database_session)
 
     return ReservationService(
         reservation_repository=reservation_repository,
         sports_space_repository=sports_space_repository,
+        timezone=ZoneInfo(settings.app_timezone),
+        notification_service=notification_service,
+    )
+
+
+def get_reservation_notification_service(
+    database_session: DatabaseSession,
+) -> ReservationNotificationService:
+    settings = get_settings()
+    return ReservationNotificationService(
+        push_device_repository=PushDeviceRepository(database_session),
+        sender=FirebasePushSender(
+            credentials_path=settings.firebase_credentials_path,
+            project_id=settings.firebase_project_id,
+        ),
+    )
+
+
+def get_reservation_reminder_service(
+    database_session: DatabaseSession,
+) -> ReservationReminderService:
+    settings = get_settings()
+    return ReservationReminderService(
+        reservation_repository=ReservationRepository(database_session),
+        reminder_repository=ReservationReminderRepository(database_session),
+        notification_service=get_reservation_notification_service(database_session),
         timezone=ZoneInfo(settings.app_timezone),
     )
 
@@ -367,6 +398,11 @@ AvailabilityServiceDependency = Annotated[
 ReservationServiceDependency = Annotated[
     ReservationService,
     Depends(get_reservation_service),
+]
+
+ReservationReminderServiceDependency = Annotated[
+    ReservationReminderService,
+    Depends(get_reservation_reminder_service),
 ]
 
 # Tipo reutilizable para inyectar PasswordRecoveryService.

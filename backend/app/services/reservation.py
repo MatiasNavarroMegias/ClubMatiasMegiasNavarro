@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -8,6 +9,9 @@ from app.repositories import (
     SportsSpaceRepository,
 )
 from app.schemas import ReservationCreate
+from app.services.reservation_notification import ReservationNotificationService
+
+logger = logging.getLogger(__name__)
 
 
 class ReservationSportsSpaceNotFoundError(Exception):
@@ -84,6 +88,7 @@ class ReservationService:
         sports_space_repository: SportsSpaceRepository,
         timezone: ZoneInfo,
         now_provider: Callable[[], datetime] | None = None,
+        notification_service: ReservationNotificationService | None = None,
     ) -> None:
         """
         Inicializa el servicio con sus dependencias.
@@ -101,6 +106,7 @@ class ReservationService:
         self.sports_space_repository = sports_space_repository
         self.timezone = timezone
         self.now_provider = now_provider or self._current_datetime
+        self.notification_service = notification_service
 
     def create_reservation(
         self,
@@ -205,9 +211,16 @@ class ReservationService:
             cancelled_at=None,
         )
 
-        return self.reservation_repository.add(
+        reservation = self.reservation_repository.add(
             reservation,
         )
+        self._notify_safely(
+            self.notification_service.notify_reservation_created
+            if self.notification_service is not None
+            else None,
+            reservation,
+        )
+        return reservation
 
     def list_upcoming_reservations(
         self,
@@ -308,9 +321,32 @@ class ReservationService:
         reservation.status = "cancelled"
         reservation.cancelled_at = current_datetime
 
-        return self.reservation_repository.save(
+        reservation = self.reservation_repository.save(
             reservation,
         )
+        self._notify_safely(
+            self.notification_service.notify_reservation_cancelled
+            if self.notification_service is not None
+            else None,
+            reservation,
+        )
+        return reservation
+
+    @staticmethod
+    def _notify_safely(
+        notification: Callable[[Reservation], None] | None,
+        reservation: Reservation,
+    ) -> None:
+        if notification is None:
+            return
+
+        try:
+            notification(reservation)
+        except Exception:
+            logger.exception(
+                "No se pudo enviar la notificacion de la reserva.",
+                extra={"reservation_id": reservation.id},
+            )
 
     def _current_datetime(self) -> datetime:
         """
