@@ -11,10 +11,13 @@ Future<void> initializeFirebaseAndPush({
   required Future<void> Function() initializePush,
   Duration timeout = const Duration(seconds: 10),
 }) async {
+  developer.log('Inicio de PushBootstrap.', name: 'PushBootstrap');
   try {
     await initializeFirebase().timeout(timeout);
+    developer.log('Firebase inicializado.', name: 'PushBootstrap');
     registerBackgroundHandler();
     await initializePush().timeout(timeout);
+    developer.log('PushBootstrap finalizado.', name: 'PushBootstrap');
   } on Object catch (error, stackTrace) {
     developer.log(
       'La inicializacion de notificaciones no se pudo completar.',
@@ -22,5 +25,6 @@ Future<void> initializeFirebaseAndPush({
       error: error,
       stackTrace: stackTrace,
     );
+    developer.log('PushBootstrap finalizo con error.', name: 'PushBootstrap');
   }
 }

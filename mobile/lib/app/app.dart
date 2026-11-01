@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 
 import '../features/reservations/data/services/reservation_api_client.dart';
@@ -21,6 +23,7 @@ class ClubApp extends StatefulWidget {
     this.venueApiClient,
     this.reservationApiClient,
     this.pushInstallationStore,
+    this.initializationTimeout = const Duration(seconds: 10),
   });
 
   /// Controlador opcional utilizado durante las pruebas.
@@ -41,6 +44,9 @@ class ClubApp extends StatefulWidget {
   /// instancia utilizada por PushNotificationService.
   final PushInstallationStore? pushInstallationStore;
 
+  /// Tiempo maximo para restaurar la sesion al iniciar.
+  final Duration initializationTimeout;
+
   @override
   State<ClubApp> createState() => _ClubAppState();
 }
@@ -52,6 +58,7 @@ class _ClubAppState extends State<ClubApp> {
   @override
   void initState() {
     super.initState();
+    developer.log('ClubApp.initState.', name: 'ClubApp');
 
     _ownsAuthController = widget.authController == null;
     _authController =
@@ -75,6 +82,7 @@ class _ClubAppState extends State<ClubApp> {
 
   @override
   Widget build(BuildContext context) {
+    developer.log('ClubApp.build.', name: 'ClubApp');
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'ClubMatiasMegiasNavarro',
@@ -85,6 +93,7 @@ class _ClubAppState extends State<ClubApp> {
         authController: _authController,
         venueApiClient: widget.venueApiClient,
         reservationApiClient: widget.reservationApiClient,
+        initializationTimeout: widget.initializationTimeout,
       ),
     );
   }

@@ -38,6 +38,36 @@ void main() {
     await pushInitialization;
   });
 
+  testWidgets('un error push no modifica el arbol visual de ClubApp', (
+    tester,
+  ) async {
+    final controller = AuthController(
+      apiClient: AuthApiClient(
+        httpClient: MockClient((request) async {
+          throw StateError('No debe realizar solicitudes sin sesion.');
+        }),
+        baseUrl: 'http://example.test',
+      ),
+      sessionStorage: MemorySessionStorage(),
+    );
+    addTearDown(controller.dispose);
+
+    final pushInitialization = initializeFirebaseAndPush(
+      initializeFirebase: () async {},
+      registerBackgroundHandler: () {},
+      initializePush: () async {
+        throw StateError('Firebase no disponible');
+      },
+    );
+
+    await tester.pumpWidget(ClubApp(authController: controller));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('login-email-field')), findsOneWidget);
+    expect(find.byKey(const Key('login-submit')), findsOneWidget);
+    await pushInitialization;
+  });
+
   test('un arranque push demorado termina por timeout', () async {
     final stopwatch = Stopwatch()..start();
 

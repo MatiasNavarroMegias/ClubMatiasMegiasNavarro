@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -19,10 +20,12 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// Punto de entrada de la aplicacion.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  developer.log('Inicio de main.', name: 'AppBootstrap');
 
   final pushInstallationStore = PushInstallationStore();
 
   runApp(ClubApp(pushInstallationStore: pushInstallationStore));
+  developer.log('ClubApp fue enviado a runApp.', name: 'AppBootstrap');
 
   unawaited(
     initializeFirebaseAndPush(

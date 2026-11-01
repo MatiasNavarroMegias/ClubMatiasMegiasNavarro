@@ -31,6 +31,8 @@ enum AuthStatus {
 /// AuthController centraliza el token, el usuario actual y los errores.
 /// Las pantallas escuchan sus cambios mediante ChangeNotifier.
 class AuthController extends ChangeNotifier {
+  static const _defaultInitializationTimeout = Duration(seconds: 10);
+
   /// Construye el controlador utilizando dependencias reemplazables.
   ///
   /// Los parametros publicos conservan nombres claros para facilitar
@@ -92,20 +94,39 @@ class AuthController extends ChangeNotifier {
       _status == AuthStatus.initializing || _status == AuthStatus.loading;
 
   /// Comprueba si existe una sesion almacenada al iniciar la app.
-  Future<void> initialize() async {
+  Future<void> initialize({
+    Duration timeout = _defaultInitializationTimeout,
+  }) async {
+    developer.log('AuthController.initialize inicio.', name: 'AuthController');
     _status = AuthStatus.initializing;
     _errorMessage = null;
     notifyListeners();
 
-    final storedToken = await _sessionStorage.readToken();
+    String? storedToken;
+    try {
+      storedToken = await _sessionStorage.readToken().timeout(timeout);
+    } on Object catch (error, stackTrace) {
+      developer.log(
+        'No se pudo leer la sesion almacenada.',
+        name: 'AuthController',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _errorMessage = 'No se pudo restaurar la sesion. Podes iniciar sesion.';
+      _setUnauthenticated();
+      return;
+    }
 
     if (storedToken == null || storedToken.isEmpty) {
+      developer.log('No hay una sesion almacenada.', name: 'AuthController');
       _setUnauthenticated();
       return;
     }
 
     try {
-      final user = await _apiClient.getCurrentUser(accessToken: storedToken);
+      final user = await _apiClient
+          .getCurrentUser(accessToken: storedToken)
+          .timeout(timeout);
 
       _accessToken = storedToken;
       _currentUser = user;
@@ -113,10 +134,38 @@ class AuthController extends ChangeNotifier {
       notifyListeners();
 
       await _registerCurrentPushDevice();
-    } on AuthApiException {
+      developer.log(
+        'AuthController.initialize finalizo con sesion valida.',
+        name: 'AuthController',
+      );
+    } on AuthApiException catch (error, stackTrace) {
       // Si el token almacenado vencio, fue alterado o ya no identifica
       // una cuenta valida, se elimina para evitar reutilizarlo.
-      await _sessionStorage.deleteToken();
+      developer.log(
+        'La sesion almacenada no es valida.',
+        name: 'AuthController',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      try {
+        await _sessionStorage.deleteToken().timeout(timeout);
+      } on Object catch (deleteError, deleteStackTrace) {
+        developer.log(
+          'No se pudo eliminar la sesion invalida.',
+          name: 'AuthController',
+          error: deleteError,
+          stackTrace: deleteStackTrace,
+        );
+      }
+      _setUnauthenticated();
+    } on Object catch (error, stackTrace) {
+      developer.log(
+        'No se pudo validar la sesion almacenada.',
+        name: 'AuthController',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _errorMessage = 'No se pudo validar la sesion. Podes iniciar sesion.';
       _setUnauthenticated();
     }
   }

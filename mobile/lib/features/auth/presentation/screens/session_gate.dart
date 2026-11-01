@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 
 import '../../../reservations/data/services/reservation_api_client.dart';
@@ -18,12 +20,14 @@ class SessionGate extends StatefulWidget {
     required this.authController,
     this.venueApiClient,
     this.reservationApiClient,
+    this.initializationTimeout = const Duration(seconds: 10),
     super.key,
   });
 
   final AuthController authController;
   final VenueApiClient? venueApiClient;
   final ReservationApiClient? reservationApiClient;
+  final Duration initializationTimeout;
 
   @override
   State<SessionGate> createState() => _SessionGateState();
@@ -35,11 +39,20 @@ class _SessionGateState extends State<SessionGate> {
   @override
   void initState() {
     super.initState();
+    developer.log('SessionGate.initState.', name: 'SessionGate');
 
     widget.authController.addListener(_handleControllerChange);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      widget.authController.initialize();
+      developer.log('Antes de AuthController.initialize.', name: 'SessionGate');
+      widget.authController
+          .initialize(timeout: widget.initializationTimeout)
+          .then((_) {
+            developer.log(
+              'Despues de AuthController.initialize.',
+              name: 'SessionGate',
+            );
+          });
     });
   }
 
@@ -121,6 +134,10 @@ class _SessionGateState extends State<SessionGate> {
 
   @override
   Widget build(BuildContext context) {
+    developer.log(
+      'SessionGate.build: ${widget.authController.status.name}.',
+      name: 'SessionGate',
+    );
     return switch (widget.authController.status) {
       AuthStatus.initializing => const _SessionLoadingView(),
       AuthStatus.authenticated => AuthenticatedShell(
