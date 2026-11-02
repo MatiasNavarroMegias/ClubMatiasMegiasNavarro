@@ -310,6 +310,30 @@ entorno programado; el programador debe enviar
 `REMINDER_INTERNAL_SECRET`. El ejemplo se encuentra en
 `deploy/cron.example`.
 
+## Datos iniciales de demostracion
+
+El seed formal crea una sede activa `Sede Moron` en `Rivadavia 19850`,
+abierta de `08:00` a `23:00`, y tres espacios activos: dos de Futbol y uno
+de Paddle. Los nombres visibles son amigables y los `composite_code` se
+generan mediante la misma utilidad del dominio.
+
+Ejecutar localmente desde `backend`:
+
+```powershell
+python -m app.scripts.seed_demo_data
+```
+
+La ejecucion es idempotente: identifica la sede por nombre y los espacios
+por `composite_code`, con respaldo en sede, tipo y numero. Una segunda
+ejecucion no duplica datos y nunca elimina ni modifica usuarios, reservas,
+dispositivos o recordatorios. La transaccion completa se revierte si ocurre
+un error.
+
+Para poblar PostgreSQL en Render, abrir **Shell** del servicio web y ejecutar
+el mismo comando. La salida esperada de la primera ejecucion es `sedes
+creadas: 1` y `espacios creados: 3`; en la segunda es `sedes creadas: 0` y
+`espacios creados: 0`.
+
 ## Base de datos local
 
 El backend utiliza PostgreSQL como base de datos relacional y SQLAlchemy para administrar las conexiones desde Python.
