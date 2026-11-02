@@ -11,8 +11,9 @@ User
 Venue
 SportsSpace
 Reservation
-PasswordResetToken
-DeviceToken
+PasswordRecoveryToken
+PushDevice
+ReservationReminder
 ```
 
 ## User
@@ -155,7 +156,7 @@ nuevo_fin > reserva_existente_inicio
 
 Si ambas condiciones se cumplen, la reserva debe rechazarse.
 
-## PasswordResetToken
+## PasswordRecoveryToken
 
 Representa una solicitud segura de recuperacion de contrasena.
 
@@ -164,7 +165,7 @@ Representa una solicitud segura de recuperacion de contrasena.
 ```text
 id
 user_id
-token_hash
+code_digest
 expires_at
 used_at
 created_at
@@ -179,7 +180,7 @@ created_at
 - Un token vencido debe rechazarse.
 - La recuperacion debe permitir establecer una nueva contrasena.
 
-## DeviceToken
+## PushDevice
 
 Representa un dispositivo habilitado para recibir notificaciones push.
 
@@ -188,7 +189,7 @@ Representa un dispositivo habilitado para recibir notificaciones push.
 ```text
 id
 user_id
-token
+installation_id
 platform
 is_active
 created_at
@@ -199,15 +200,35 @@ updated_at
 
 - Un usuario puede registrar varios dispositivos.
 - El token identifica la aplicacion instalada en un dispositivo.
+- El identificador corresponde al Firebase Installation ID utilizado por FCM.
 - Un token puede desactivarse al cerrar sesion.
 - La plataforma permite diferenciar Android de otras plataformas futuras.
+
+## ReservationReminder
+
+Registra que el recordatorio de una reserva ya fue enviado.
+
+### Atributos
+
+```text
+id
+reservation_id
+sent_at
+```
+
+### Reglas
+
+- Cada reserva confirmada puede tener como maximo un registro.
+- El registro se crea solamente despues de enviar correctamente el aviso.
+- Las reservas canceladas no se seleccionan para recordatorios.
 
 ## Relaciones
 
 ```text
 User 1 -------- N Reservation
-User 1 -------- N PasswordResetToken
-User 1 -------- N DeviceToken
+User 1 -------- N PasswordRecoveryToken
+User 1 -------- N PushDevice
+Reservation 1 - 0..1 ReservationReminder
 
 Venue 1 ------- N SportsSpace
 
@@ -236,11 +257,14 @@ reservations.user_id
 reservations.sports_space_id
 → sports_spaces.id
 
-password_reset_tokens.user_id
+password_recovery_tokens.user_id
 → users.id
 
-device_tokens.user_id
+push_devices.user_id
 → users.id
+
+reservation_reminders.reservation_id
+→ reservations.id
 ```
 
 ## Identificacion del usuario autenticado
@@ -281,10 +305,11 @@ Las entidades se implementaran en este orden:
 
 ```text
 User
-→ PasswordResetToken
+→ PasswordRecoveryToken
 → SportsSpace
 → Reservation
-→ DeviceToken
+→ PushDevice
+→ ReservationReminder
 ```
 
 `Venue` ya se encuentra implementada y versionada mediante Alembic.
