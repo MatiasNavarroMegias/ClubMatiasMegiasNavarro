@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/time/club_time.dart';
 import '../../data/models/reservation.dart';
 import '../../data/services/reservation_api_client.dart';
 
@@ -162,8 +163,8 @@ class _ReservationHistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final localStart = reservation.startAt.toLocal();
-    final localEnd = reservation.endAt.toLocal();
+    final venueStart = ClubTime.fromApi(reservation.startAt);
+    final venueEnd = ClubTime.fromApi(reservation.endAt);
 
     return Card(
       key: ValueKey('history-reservation-${reservation.id}'),
@@ -217,14 +218,14 @@ class _ReservationHistoryCard extends StatelessWidget {
             const SizedBox(height: 18),
             _HistoryInformationRow(
               icon: Icons.event_outlined,
-              text: _formatDate(localStart),
+              text: ClubTime.formatDate(venueStart),
             ),
             const SizedBox(height: 10),
             _HistoryInformationRow(
               icon: Icons.schedule_outlined,
               text:
-                  '${_formatTime(localStart)}'
-                  ' - ${_formatTime(localEnd)}',
+                  '${ClubTime.formatTime(venueStart)}'
+                  ' - ${ClubTime.formatTime(venueEnd)}',
             ),
             if (reservation.cancelledAt != null) ...[
               const SizedBox(height: 10),
@@ -232,7 +233,7 @@ class _ReservationHistoryCard extends StatelessWidget {
                 icon: Icons.cancel_outlined,
                 text:
                     'Cancelada el '
-                    '${_formatDateTime(reservation.cancelledAt!.toLocal())}',
+                    '${_formatDateTime(reservation.cancelledAt!)}',
               ),
             ],
           ],
@@ -257,22 +258,8 @@ class _ReservationHistoryCard extends StatelessWidget {
     return colorScheme.onSecondaryContainer;
   }
 
-  String _formatDate(DateTime value) {
-    final day = value.day.toString().padLeft(2, '0');
-    final month = value.month.toString().padLeft(2, '0');
-
-    return '$day/$month/${value.year}';
-  }
-
-  String _formatTime(DateTime value) {
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
-
-    return '$hour:$minute';
-  }
-
   String _formatDateTime(DateTime value) {
-    return '${_formatDate(value)} ${_formatTime(value)}';
+    return '${ClubTime.formatDate(value)} ${ClubTime.formatTime(value)}';
   }
 }
 

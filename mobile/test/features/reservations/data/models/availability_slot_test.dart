@@ -1,3 +1,4 @@
+import 'package:club_matias_megias_navarro/core/time/club_time.dart';
 import 'package:club_matias_megias_navarro/features/reservations/data/models/availability_slot.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,8 +9,14 @@ void main() {
       'end_at': '2026-11-03T19:00:00-03:00',
     });
 
-    expect(slot.startAt, DateTime.parse('2026-11-03T18:00:00-03:00'));
-    expect(slot.endAt, DateTime.parse('2026-11-03T19:00:00-03:00'));
+    expect(
+      slot.startAt,
+      ClubTime.fromCivil(year: 2026, month: 11, day: 3, hour: 18),
+    );
+    expect(
+      slot.endAt,
+      ClubTime.fromCivil(year: 2026, month: 11, day: 3, hour: 19),
+    );
     expect(slot.duration, const Duration(hours: 1));
     expect(slot.isOneHour, isTrue);
   });

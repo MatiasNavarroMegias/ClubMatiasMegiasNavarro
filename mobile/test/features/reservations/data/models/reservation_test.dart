@@ -1,3 +1,4 @@
+import 'package:club_matias_megias_navarro/core/time/club_time.dart';
 import 'package:club_matias_megias_navarro/features/reservations/data/models/reservation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -22,8 +23,14 @@ void main() {
     expect(reservation.id, 1);
     expect(reservation.userId, 7);
     expect(reservation.sportsSpaceId, 8);
-    expect(reservation.startAt, DateTime.parse('2026-11-03T18:00:00-03:00'));
-    expect(reservation.endAt, DateTime.parse('2026-11-03T19:00:00-03:00'));
+    expect(
+      reservation.startAt,
+      ClubTime.fromCivil(year: 2026, month: 11, day: 3, hour: 18),
+    );
+    expect(
+      reservation.endAt,
+      ClubTime.fromCivil(year: 2026, month: 11, day: 3, hour: 19),
+    );
     expect(reservation.status, 'confirmed');
     expect(reservation.cancelledAt, isNull);
     expect(reservation.isConfirmed, isTrue);

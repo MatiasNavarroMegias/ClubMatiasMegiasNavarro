@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/time/club_time.dart';
 import '../../data/models/reservation.dart';
 import '../../data/services/reservation_api_client.dart';
 
@@ -126,8 +127,8 @@ class _UpcomingReservationsScreenState
         await showDialog<bool>(
           context: context,
           builder: (context) {
-            final localStart = reservation.startAt.toLocal();
-            final localEnd = reservation.endAt.toLocal();
+            final venueStart = ClubTime.fromApi(reservation.startAt);
+            final venueEnd = ClubTime.fromApi(reservation.endAt);
 
             return AlertDialog(
               key: const Key('reservation-cancellation-dialog'),
@@ -138,11 +139,11 @@ class _UpcomingReservationsScreenState
                 children: [
                   Text('Reserva #${reservation.id}'),
                   const SizedBox(height: 8),
-                  Text('Fecha: ${_formatDate(localStart)}'),
+                  Text('Fecha: ${ClubTime.formatDate(venueStart)}'),
                   const SizedBox(height: 6),
                   Text(
-                    'Horario: ${_formatTime(localStart)}'
-                    ' - ${_formatTime(localEnd)}',
+                    'Horario: ${ClubTime.formatTime(venueStart)}'
+                    ' - ${ClubTime.formatTime(venueEnd)}',
                   ),
                   const SizedBox(height: 16),
                   const Text(
@@ -232,22 +233,6 @@ class _UpcomingReservationsScreenState
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  /// Formatea una fecha para mostrarla al usuario.
-  String _formatDate(DateTime value) {
-    final day = value.day.toString().padLeft(2, '0');
-    final month = value.month.toString().padLeft(2, '0');
-
-    return '$day/$month/${value.year}';
-  }
-
-  /// Formatea una hora para mostrarla al usuario.
-  String _formatTime(DateTime value) {
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
-
-    return '$hour:$minute';
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -327,8 +312,8 @@ class _UpcomingReservationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final localStart = reservation.startAt.toLocal();
-    final localEnd = reservation.endAt.toLocal();
+    final venueStart = ClubTime.fromApi(reservation.startAt);
+    final venueEnd = ClubTime.fromApi(reservation.endAt);
 
     return Card(
       key: ValueKey('upcoming-reservation-${reservation.id}'),
@@ -380,14 +365,14 @@ class _UpcomingReservationCard extends StatelessWidget {
             const SizedBox(height: 18),
             _ReservationInformationRow(
               icon: Icons.event_outlined,
-              text: _formatDate(localStart),
+              text: ClubTime.formatDate(venueStart),
             ),
             const SizedBox(height: 10),
             _ReservationInformationRow(
               icon: Icons.schedule_outlined,
               text:
-                  '${_formatTime(localStart)}'
-                  ' - ${_formatTime(localEnd)}',
+                  '${ClubTime.formatTime(venueStart)}'
+                  ' - ${ClubTime.formatTime(venueEnd)}',
             ),
 
             const SizedBox(height: 18),
@@ -411,20 +396,6 @@ class _UpcomingReservationCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatDate(DateTime value) {
-    final day = value.day.toString().padLeft(2, '0');
-    final month = value.month.toString().padLeft(2, '0');
-
-    return '$day/$month/${value.year}';
-  }
-
-  String _formatTime(DateTime value) {
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
-
-    return '$hour:$minute';
   }
 }
 

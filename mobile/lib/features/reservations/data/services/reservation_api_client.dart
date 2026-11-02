@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../../../core/config/api_config.dart';
+import '../../../../core/time/club_time.dart';
 import '../models/availability_slot.dart';
 import '../models/reservation.dart';
 
@@ -84,12 +85,13 @@ class ReservationApiClient {
 
   /// Crea una reserva para el usuario autenticado.
   ///
-  /// El usuario se obtiene desde el token. El cliente envia solamente
-  /// el espacio deportivo y el horario de inicio seleccionado.
+  /// El usuario se obtiene desde el token. El cliente envia el intervalo
+  /// seleccionado y conserva una hora como duracion rapida por defecto.
   Future<Reservation> createReservation({
     required String accessToken,
     required int sportsSpaceId,
     required DateTime startAt,
+    DateTime? endAt,
   }) async {
     final uri = Uri.parse('$baseUrl/reservations');
 
@@ -99,7 +101,8 @@ class ReservationApiClient {
         headers: _authenticatedHeaders(accessToken),
         body: jsonEncode({
           'sports_space_id': sportsSpaceId,
-          'start_at': startAt.toIso8601String(),
+          'start_at': ClubTime.toApi(startAt),
+          if (endAt != null) 'end_at': ClubTime.toApi(endAt),
         }),
       ),
     );

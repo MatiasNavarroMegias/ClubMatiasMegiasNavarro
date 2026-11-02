@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:club_matias_megias_navarro/core/time/club_time.dart';
 import 'package:club_matias_megias_navarro/features/reservations/data/models/availability_slot.dart';
 import 'package:club_matias_megias_navarro/features/reservations/data/services/reservation_api_client.dart';
 import 'package:club_matias_megias_navarro/features/reservations/presentation/screens/availability_selection_screen.dart';
@@ -242,7 +243,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(selectedSlot, isNotNull);
-    expect(selectedSlot?.startAt, parsedStart);
+    expect(
+      selectedSlot?.startAt,
+      ClubTime.fromCivil(year: 2026, month: 11, day: 3, hour: 18),
+    );
     expect(find.byKey(const Key('availability-selected-slot')), findsOneWidget);
     expect(find.byIcon(Icons.check_circle), findsOneWidget);
   });

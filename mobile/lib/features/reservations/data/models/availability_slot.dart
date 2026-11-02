@@ -1,3 +1,5 @@
+import '../../../../core/time/club_time.dart';
+
 /// Representa un turno disponible para reservar.
 ///
 /// Cada turno posee una fecha de inicio y una fecha de finalizacion
@@ -13,8 +15,8 @@ class AvailabilitySlot {
 
   /// Construye un turno disponible desde la respuesta JSON.
   factory AvailabilitySlot.fromJson(Map<String, dynamic> json) {
-    final startAt = _readDateTime(json, 'start_at');
-    final endAt = _readDateTime(json, 'end_at');
+    final startAt = ClubTime.fromApi(_readDateTime(json, 'start_at'));
+    final endAt = ClubTime.fromApi(_readDateTime(json, 'end_at'));
 
     if (!endAt.isAfter(startAt)) {
       throw const FormatException(

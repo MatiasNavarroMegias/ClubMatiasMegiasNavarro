@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:club_matias_megias_navarro/features/reservations/data/services/reservation_api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:club_matias_megias_navarro/core/time/club_time.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
@@ -66,7 +68,10 @@ void main() {
 
     expect(slots, hasLength(2));
     expect(slots.first.isOneHour, isTrue);
-    expect(slots.first.startAt, DateTime.parse('2026-11-03T18:00:00-03:00'));
+    expect(
+      slots.first.startAt,
+      ClubTime.fromCivil(year: 2026, month: 11, day: 3, hour: 18),
+    );
   });
 
   test('crea una reserva autenticada', () async {
@@ -80,7 +85,7 @@ void main() {
 
       expect(decodedBody, {
         'sports_space_id': 8,
-        'start_at': '2026-11-03T21:00:00.000Z',
+        'start_at': '2026-11-03T20:00:00-03:00',
       });
 
       return http.Response(
@@ -100,7 +105,7 @@ void main() {
     final reservation = await apiClient.createReservation(
       accessToken: accessToken,
       sportsSpaceId: 8,
-      startAt: DateTime.utc(2026, 11, 3, 21),
+      startAt: ClubTime.fromCivil(year: 2026, month: 11, day: 3, hour: 20),
     );
 
     expect(reservation.id, 1);
@@ -109,6 +114,41 @@ void main() {
     expect(reservation.isConfirmed, isTrue);
     expect(reservation.cancelledAt, isNull);
   });
+
+  test(
+    'envia el final cuando se solicita una reserva de varias horas',
+    () async {
+      final httpClient = MockClient((request) async {
+        final decodedBody = jsonDecode(request.body) as Map<String, dynamic>;
+
+        expect(decodedBody, {
+          'sports_space_id': 8,
+          'start_at': '2026-11-03T19:00:00-03:00',
+          'end_at': '2026-11-03T21:00:00-03:00',
+        });
+
+        return http.Response(
+          jsonEncode(reservationJson()),
+          201,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
+      });
+
+      final apiClient = ReservationApiClient(
+        httpClient: httpClient,
+        baseUrl: baseUrl,
+      );
+
+      addTearDown(apiClient.close);
+
+      await apiClient.createReservation(
+        accessToken: accessToken,
+        sportsSpaceId: 8,
+        startAt: ClubTime.fromCivil(year: 2026, month: 11, day: 3, hour: 19),
+        endAt: ClubTime.fromCivil(year: 2026, month: 11, day: 3, hour: 21),
+      );
+    },
+  );
 
   test('consulta las proximas reservas con token Bearer', () async {
     final httpClient = MockClient((request) async {

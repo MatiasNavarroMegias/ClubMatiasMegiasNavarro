@@ -1,3 +1,5 @@
+import '../../../../core/time/club_time.dart';
+
 /// Representa una reserva deportiva devuelta por FastAPI.
 ///
 /// La reserva conserva el usuario propietario, el espacio reservado,
@@ -72,8 +74,8 @@ class Reservation {
     final id = _readPositiveInteger(json, 'id');
     final userId = _readPositiveInteger(json, 'user_id');
     final sportsSpaceId = _readPositiveInteger(json, 'sports_space_id');
-    final startAt = _readDateTime(json, 'start_at');
-    final endAt = _readDateTime(json, 'end_at');
+    final startAt = ClubTime.fromApi(_readDateTime(json, 'start_at'));
+    final endAt = ClubTime.fromApi(_readDateTime(json, 'end_at'));
     final status = _readStatus(json);
     final cancelledAt = _readOptionalDateTime(json, 'cancelled_at');
     final createdAt = _readDateTime(json, 'created_at');

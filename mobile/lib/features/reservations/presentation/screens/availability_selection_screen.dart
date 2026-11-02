@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/time/club_time.dart';
 import '../../../sports_spaces/data/models/sports_space.dart';
 import '../../../venues/data/models/venue.dart';
 import '../../data/models/availability_slot.dart';
 import '../../data/services/reservation_api_client.dart';
 
-/// Permite seleccionar una fecha y un turno disponible.
+/// Permite seleccionar una fecha y un intervalo disponible.
 ///
 /// La pantalla consulta FastAPI utilizando el espacio deportivo y la
-/// fecha local seleccionados. En esta etapa solamente permite elegir
-/// un horario. La confirmacion de la reserva se agregara posteriormente.
+/// fecha local seleccionados. Cada slot representa una hora libre y puede
+/// combinarse con slots consecutivos para reservar varias horas.
 class AvailabilitySelectionScreen extends StatefulWidget {
   const AvailabilitySelectionScreen({
     required this.venue,
@@ -85,7 +86,7 @@ class _AvailabilitySelectionScreenState
 
   /// Devuelve el momento actual real o el configurado para pruebas.
   DateTime _currentDateTime() {
-    return widget.nowProvider?.call() ?? DateTime.now();
+    return widget.nowProvider?.call() ?? ClubTime.now();
   }
 
   /// Elimina la informacion horaria de una fecha.
@@ -184,6 +185,33 @@ class _AvailabilitySelectionScreenState
     widget.onSlotSelected?.call(slot);
   }
 
+  /// Devuelve los finales posibles sin atravesar una hora ocupada.
+  List<DateTime> _validEndTimes(AvailabilitySlot startSlot) {
+    final endTimes = <DateTime>[];
+    var expectedStart = startSlot.endAt;
+
+    while (_availableSlots.any((slot) => slot.startAt == expectedStart)) {
+      endTimes.add(expectedStart.add(const Duration(hours: 1)));
+      expectedStart = expectedStart.add(const Duration(hours: 1));
+    }
+
+    return [startSlot.endAt, ...endTimes];
+  }
+
+  void _selectEnd(DateTime endAt) {
+    final selectedSlot = _selectedSlot;
+    if (selectedSlot == null) {
+      return;
+    }
+
+    setState(() {
+      _selectedSlot = AvailabilitySlot(
+        startAt: selectedSlot.startAt,
+        endAt: endAt,
+      );
+    });
+  }
+
   /// Solicita confirmacion y crea la reserva seleccionada.
   Future<void> _confirmReservation() async {
     final selectedSlot = _selectedSlot;
@@ -201,8 +229,8 @@ class _AvailabilitySelectionScreenState
       return;
     }
 
-    final localStart = selectedSlot.startAt.toLocal();
-    final localEnd = selectedSlot.endAt.toLocal();
+    final venueStart = ClubTime.fromApi(selectedSlot.startAt);
+    final venueEnd = ClubTime.fromApi(selectedSlot.endAt);
 
     final confirmed =
         await showDialog<bool>(
@@ -219,11 +247,15 @@ class _AvailabilitySelectionScreenState
                   const SizedBox(height: 8),
                   Text(widget.venue.name),
                   const SizedBox(height: 16),
-                  Text('Fecha: ${_formatDate(localStart)}'),
+                  Text('Fecha: ${ClubTime.formatDate(venueStart)}'),
                   const SizedBox(height: 6),
                   Text(
-                    'Horario: ${_formatTime(localStart)}'
-                    ' - ${_formatTime(localEnd)}',
+                    'Horario: ${ClubTime.formatTime(venueStart)}'
+                    ' - ${ClubTime.formatTime(venueEnd)}',
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Duracion: ${venueEnd.difference(venueStart).inHours} hora(s)',
                   ),
                 ],
               ),
@@ -261,6 +293,7 @@ class _AvailabilitySelectionScreenState
         accessToken: accessToken,
         sportsSpaceId: widget.sportsSpace.id,
         startAt: selectedSlot.startAt,
+        endAt: selectedSlot.endAt,
       );
 
       if (!mounted) {
@@ -310,21 +343,6 @@ class _AvailabilitySelectionScreenState
   }
 
   /// Formatea una fecha para mostrarla al usuario.
-  String _formatDate(DateTime value) {
-    final day = value.day.toString().padLeft(2, '0');
-    final month = value.month.toString().padLeft(2, '0');
-
-    return '$day/$month/${value.year}';
-  }
-
-  /// Formatea una hora para mostrarla al usuario.
-  String _formatTime(DateTime value) {
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
-
-    return '$hour:$minute';
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -404,13 +422,18 @@ class _AvailabilitySelectionScreenState
       child: ListView.separated(
         key: const Key('availability-slot-list'),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-        itemCount: _availableSlots.length,
+        itemCount: _availableSlots.length + (_selectedSlot == null ? 0 : 1),
         separatorBuilder: (context, index) {
           return const SizedBox(height: 10);
         },
         itemBuilder: (context, index) {
-          final slot = _availableSlots[index];
-          final isSelected = identical(slot, _selectedSlot);
+          if (_selectedSlot != null && index == 0) {
+            return _buildEndSelector(_selectedSlot!);
+          }
+
+          final slotIndex = index - (_selectedSlot == null ? 0 : 1);
+          final slot = _availableSlots[slotIndex];
+          final isSelected = slot.startAt == _selectedSlot?.startAt;
 
           return _AvailabilitySlotCard(
             slot: slot,
@@ -420,6 +443,37 @@ class _AvailabilitySelectionScreenState
             },
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildEndSelector(AvailabilitySlot selectedSlot) {
+    final endTimes = _validEndTimes(selectedSlot);
+
+    return Card(
+      key: const Key('availability-end-selector'),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: DropdownButtonFormField<DateTime>(
+          key: ValueKey('availability-end-${selectedSlot.endAt}'),
+          initialValue: selectedSlot.endAt,
+          decoration: const InputDecoration(
+            labelText: 'Hora de finalizacion',
+            border: OutlineInputBorder(),
+          ),
+          items: [
+            for (final endAt in endTimes)
+              DropdownMenuItem(
+                value: endAt,
+                child: Text(ClubTime.formatTime(endAt)),
+              ),
+          ],
+          onChanged: (endAt) {
+            if (endAt != null) {
+              _selectEnd(endAt);
+            }
+          },
+        ),
       ),
     );
   }
@@ -504,17 +558,10 @@ class _DateSelector extends StatelessWidget {
           key: const Key('availability-date-button'),
           onPressed: onPressed,
           icon: const Icon(Icons.event_outlined),
-          label: Text(_formatDate(selectedDate)),
+          label: Text(ClubTime.formatDate(selectedDate)),
         ),
       ),
     );
-  }
-
-  String _formatDate(DateTime value) {
-    final day = value.day.toString().padLeft(2, '0');
-    final month = value.month.toString().padLeft(2, '0');
-
-    return '$day/$month/${value.year}';
   }
 }
 
@@ -533,11 +580,13 @@ class _AvailabilitySlotCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final localStart = slot.startAt.toLocal();
-    final localEnd = slot.endAt.toLocal();
+    final venueStart = ClubTime.fromApi(slot.startAt);
+    final venueEnd = ClubTime.fromApi(slot.endAt);
 
     return Card(
-      key: ValueKey('availability-slot-${slot.startAt.toIso8601String()}'),
+      key: ValueKey(
+        'availability-slot-${slot.startAt.toUtc().toIso8601String()}',
+      ),
       elevation: 0,
       color: isSelected
           ? colorScheme.primaryContainer
@@ -558,8 +607,8 @@ class _AvailabilitySlotCard extends StatelessWidget {
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
-                  '${_formatTime(localStart)}'
-                  ' - ${_formatTime(localEnd)}',
+                  '${ClubTime.formatTime(venueStart)}'
+                  ' - ${ClubTime.formatTime(venueEnd)}',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: isSelected ? colorScheme.onPrimaryContainer : null,
@@ -579,13 +628,6 @@ class _AvailabilitySlotCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatTime(DateTime value) {
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
-
-    return '$hour:$minute';
   }
 }
 
