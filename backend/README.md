@@ -254,6 +254,31 @@ recordatorios evita repetir el envio para una misma reserva. El endpoint solo
 debe exponerse dentro de la red de confianza y siempre debe usar HTTPS fuera
 del entorno local.
 
+## Recuperacion segura de contrasena
+
+La solicitud de recuperacion siempre devuelve el mismo mensaje para no
+revelar si un correo esta registrado. El codigo numerico se genera con
+`secrets`, se almacena solamente como HMAC-SHA256, vence en 15 minutos y
+queda invalidado despues de cinco intentos fallidos o de un uso correcto.
+
+En desarrollo y testing el codigo se registra mediante el logger de la
+aplicacion. En produccion es obligatorio configurar SMTP:
+
+```env
+APP_ENV=production
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USERNAME=replace-with-smtp-user
+SMTP_PASSWORD=replace-with-smtp-password
+SMTP_FROM_EMAIL=no-reply@example.com
+SMTP_USE_TLS=true
+SMTP_TIMEOUT_SECONDS=10
+```
+
+La API no permite iniciar el servicio de recuperacion en produccion si falta
+alguno de esos valores. La contrasena SMTP debe configurarse solamente en el
+entorno de despliegue y nunca en `.env.example`, Git o capturas.
+
 ## Base de datos local
 
 El backend utiliza PostgreSQL como base de datos relacional y SQLAlchemy para administrar las conexiones desde Python.

@@ -33,6 +33,7 @@ from app.services import (
     ReservationNotificationService,
     ReservationReminderService,
     ReservationService,
+    SMTPRecoveryCodeNotifier,
     SportsSpaceService,
     VenueService,
 )
@@ -100,9 +101,8 @@ def get_password_recovery_service(
     codigos temporales. La clave JWT tambien protege el resumen HMAC
     del codigo de recuperacion.
 
-    Durante el desarrollo, el codigo se muestra en la consola del
-    backend. Esta implementacion debera reemplazarse por correo antes
-    de utilizar el sistema en produccion.
+    Durante el desarrollo, el codigo se registra mediante logging.
+    En produccion se utiliza SMTP configurado por variables de entorno.
 
     Args:
         database_session: Sesion asociada a la solicitud actual.
@@ -110,16 +110,8 @@ def get_password_recovery_service(
     Returns:
         Servicio preparado para solicitar y confirmar recuperaciones.
 
-    Raises:
-        RuntimeError: Cuando se intenta utilizar el notificador de
-            desarrollo dentro del entorno de produccion.
     """
     settings = get_settings()
-
-    if settings.app_env == "production":
-        raise RuntimeError(
-            "Debe configurar un notificador de recuperacion seguro para el entorno de produccion."
-        )
 
     user_repository = UserRepository(
         database_session,
@@ -132,7 +124,28 @@ def get_password_recovery_service(
         code_length=8,
     )
     password_hasher = PasswordHasher()
-    notifier = DevelopmentRecoveryCodeNotifier()
+    if settings.app_env == "production":
+        required_smtp_values = (
+            settings.smtp_host,
+            settings.smtp_username,
+            settings.smtp_password,
+            settings.smtp_from_email,
+        )
+        if any(value is None or not value.strip() for value in required_smtp_values):
+            raise RuntimeError(
+                "La recuperacion en produccion requiere configuracion SMTP completa."
+            )
+        notifier = SMTPRecoveryCodeNotifier(
+            host=settings.smtp_host,
+            port=settings.smtp_port,
+            username=settings.smtp_username,
+            password=settings.smtp_password,
+            sender=settings.smtp_from_email,
+            use_tls=settings.smtp_use_tls,
+            timeout_seconds=settings.smtp_timeout_seconds,
+        )
+    else:
+        notifier = DevelopmentRecoveryCodeNotifier()
 
     return PasswordRecoveryService(
         user_repository=user_repository,

@@ -23,6 +23,7 @@ from app.services.push_device import PushDeviceService
 from app.services.recovery_notifier import (
     DevelopmentRecoveryCodeNotifier,
     RecoveryCodeNotifier,
+    SMTPRecoveryCodeNotifier,
 )
 from app.services.reservation import (
     ReservationAlreadyCancelledError,
@@ -58,6 +59,7 @@ from app.services.venue import (
 
 __all__ = [
     "DevelopmentRecoveryCodeNotifier",
+    "SMTPRecoveryCodeNotifier",
     "InvalidPasswordRecoveryCodeError",
     "PasswordRecoveryAttemptsExceededError",
     "PasswordRecoveryService",

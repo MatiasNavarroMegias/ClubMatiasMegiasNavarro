@@ -21,6 +21,7 @@ from app.services import (
     InvalidPasswordRecoveryCodeError,
     PasswordRecoveryAttemptsExceededError,
     PasswordRecoveryService,
+    SMTPRecoveryCodeNotifier,
 )
 
 PUBLIC_MESSAGE = (
@@ -119,7 +120,7 @@ def test_get_password_recovery_service_builds_dependencies():
     assert service.maximum_attempts == 5
 
 
-def test_get_password_recovery_service_rejects_console_notifier_in_production():
+def test_get_password_recovery_service_builds_smtp_notifier_in_production():
     """
     Verifica que la consola no pueda utilizarse en produccion.
     """
@@ -130,18 +131,36 @@ def test_get_password_recovery_service_rejects_console_notifier_in_production():
     settings = MagicMock()
     settings.app_env = "production"
     settings.jwt_secret_key = "clave-secreta-de-produccion-con-longitud-segura"
+    settings.smtp_host = "smtp.example.com"
+    settings.smtp_port = 587
+    settings.smtp_username = "smtp-user"
+    settings.smtp_password = "smtp-password"
+    settings.smtp_from_email = "no-reply@example.com"
+    settings.smtp_use_tls = True
+    settings.smtp_timeout_seconds = 10
 
     with patch(
         "app.api.dependencies.get_settings",
         return_value=settings,
     ):
-        with pytest.raises(
-            RuntimeError,
-            match=("Debe configurar un notificador de recuperacion seguro"),
-        ):
-            get_password_recovery_service(
-                database_session,
-            )
+        service = get_password_recovery_service(database_session)
+
+    assert isinstance(service.notifier, SMTPRecoveryCodeNotifier)
+
+
+def test_get_password_recovery_service_rejects_incomplete_smtp_in_production():
+    database_session = MagicMock(spec=Session)
+    settings = MagicMock()
+    settings.app_env = "production"
+    settings.jwt_secret_key = "clave-secreta-de-produccion-con-longitud-segura"
+    settings.smtp_host = None
+    settings.smtp_username = None
+    settings.smtp_password = None
+    settings.smtp_from_email = None
+
+    with patch("app.api.dependencies.get_settings", return_value=settings):
+        with pytest.raises(RuntimeError, match="requiere configuracion SMTP completa"):
+            get_password_recovery_service(database_session)
 
 
 def test_request_password_recovery_returns_generic_message(

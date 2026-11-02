@@ -63,6 +63,13 @@ class Settings(BaseSettings):
     firebase_credentials_path: str | None = None
     firebase_project_id: str | None = None
     reminder_internal_secret: str | None = None
+    smtp_host: str | None = None
+    smtp_port: int = Field(default=587, gt=0, le=65535)
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str | None = None
+    smtp_use_tls: bool = True
+    smtp_timeout_seconds: int = Field(default=10, gt=0)
 
     @field_validator("app_timezone")
     @classmethod
