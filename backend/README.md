@@ -316,10 +316,15 @@ entorno programado; el programador debe enviar
 
 ## Datos iniciales de demostracion
 
-El seed formal crea una sede activa `Sede Moron` en `Rivadavia 19850`,
-abierta de `08:00` a `23:00`, y tres espacios activos: dos de Futbol y uno
-de Paddle. Los nombres visibles son amigables y los `composite_code` se
-generan mediante la misma utilidad del dominio.
+El seed formal crea cuatro sedes activas y 24 espacios activos, seis por
+sede. Cada sede tiene tres deportes y dos espacios por deporte. Los nombres
+visibles son amigables y los `composite_code` se generan mediante la misma
+utilidad del dominio:
+
+- `Sede Moron`: Futbol, Paddle y Basquet.
+- `Sede Ramos Mejia`: Futbol, Tenis y Voley.
+- `Sede Haedo`: Futbol, Paddle y Hockey.
+- `Sede Castelar`: Futbol, Tenis y Basquet.
 
 Ejecutar localmente desde `backend`:
 
@@ -333,10 +338,10 @@ ejecucion no duplica datos y nunca elimina ni modifica usuarios, reservas,
 dispositivos o recordatorios. La transaccion completa se revierte si ocurre
 un error.
 
-Para poblar PostgreSQL en Render, abrir **Shell** del servicio web y ejecutar
-el mismo comando. La salida esperada de la primera ejecucion es `sedes
-creadas: 1` y `espacios creados: 3`; en la segunda es `sedes creadas: 0` y
-`espacios creados: 0`.
+En Render, el mismo comando se ejecuta automaticamente durante cada arranque
+del contenedor, despues de las migraciones y antes de Uvicorn. La salida
+esperada de una base vacia es `sedes creadas: 4` y `espacios creados: 24`;
+en un segundo arranque es `sedes creadas: 0` y `espacios creados: 0`.
 
 ## Base de datos local
 
