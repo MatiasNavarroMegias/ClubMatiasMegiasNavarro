@@ -297,10 +297,14 @@ el nombre `firebase-admin-key.json`. El servicio espera encontrarla en
 `/etc/secrets/firebase-admin-key.json`; no se debe copiar al repositorio ni
 incluirla dentro de la imagen Docker.
 
-El contenedor ejecuta `alembic upgrade head` antes de iniciar Uvicorn y expone
-`/health` como health check. Docker no esta instalado en el entorno local de
-desarrollo actual, por lo que la construccion debe verificarse en Render o en
-un equipo con Docker.
+El contenedor ejecuta, en orden, `python -m alembic upgrade head`,
+`python -m app.scripts.seed_demo_data` y Uvicorn antes de exponer `/health`
+como health check. Tanto la migracion como el seed utilizan fail-fast: si
+cualquiera falla, Uvicorn no se inicia. El seed se ejecuta en cada arranque,
+pero su comportamiento idempotente impide duplicar sedes o espacios y no
+modifica usuarios, reservas, dispositivos, recordatorios ni secretos. Docker
+no esta instalado en el entorno local de desarrollo actual, por lo que la
+construccion debe verificarse en Render o en un equipo con Docker.
 
 El endpoint `POST /internal/reminders` se ejecuta cada cinco minutos mediante
 un programador HTTPS externo gratuito. El script
