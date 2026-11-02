@@ -405,6 +405,13 @@ class _SportsSpaceCard extends StatelessWidget {
                       'Espacio ${sportsSpace.spaceNumber}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
+                    if (sportsSpace.compositeCode != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        sportsSpace.compositeCode!,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ],
                 ),
               ),

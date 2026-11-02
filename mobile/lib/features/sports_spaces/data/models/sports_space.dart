@@ -10,6 +10,7 @@ class SportsSpace {
     required this.name,
     required this.sportType,
     required this.spaceNumber,
+    required this.compositeCode,
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
@@ -30,6 +31,9 @@ class SportsSpace {
   /// Numero que diferencia espacios del mismo deporte.
   final int spaceNumber;
 
+  /// Codigo compuesto unico generado por el backend.
+  final String? compositeCode;
+
   /// Indica si el espacio puede utilizarse para nuevas operaciones.
   final bool isActive;
 
@@ -47,6 +51,7 @@ class SportsSpace {
       name: _readString(json, 'name'),
       sportType: _readString(json, 'sport_type'),
       spaceNumber: _readInt(json, 'space_number'),
+      compositeCode: _readOptionalString(json, 'composite_code'),
       isActive: _readBool(json, 'is_active'),
       createdAt: _readDateTime(json, 'created_at'),
       updatedAt: _readDateTime(json, 'updated_at'),
@@ -57,7 +62,7 @@ class SportsSpace {
   ///
   /// Este metodo facilita pruebas y futuras operaciones locales.
   Map<String, dynamic> toJson() {
-    return {
+    final result = <String, dynamic>{
       'id': id,
       'venue_id': venueId,
       'name': name,
@@ -67,6 +72,10 @@ class SportsSpace {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
+    if (compositeCode != null) {
+      result['composite_code'] = compositeCode;
+    }
+    return result;
   }
 
   static int _readInt(Map<String, dynamic> json, String fieldName) {
@@ -96,6 +105,20 @@ class SportsSpace {
       throw FormatException('El campo $fieldName debe ser booleano.');
     }
 
+    return value;
+  }
+
+  static String? _readOptionalString(
+    Map<String, dynamic> json,
+    String fieldName,
+  ) {
+    final value = json[fieldName];
+    if (value == null) {
+      return null;
+    }
+    if (value is! String || value.trim().isEmpty) {
+      throw FormatException('El campo $fieldName debe contener texto.');
+    }
     return value;
   }
 
