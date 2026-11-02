@@ -119,7 +119,7 @@ class PushNotificationService {
       try {
         await notificationClient.show(
           id: message.hashCode,
-          title: notification.title ?? 'ClubMatiasMegiasNavarro',
+          title: notification.title ?? 'Club Matias Megias Navarro',
           body: notification.body ?? '',
         );
       } on Object catch (error, stackTrace) {

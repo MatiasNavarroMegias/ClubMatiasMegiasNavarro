@@ -29,7 +29,7 @@ class FlutterLocalNotificationClient implements LocalNotificationClient {
   @override
   Future<void> initialize() async {
     const settings = InitializationSettings(
-      android: AndroidInitializationSettings('mipmap/ic_launcher'),
+      android: AndroidInitializationSettings('ic_notification'),
     );
 
     await _plugin.initialize(settings: settings);
@@ -59,7 +59,7 @@ class FlutterLocalNotificationClient implements LocalNotificationClient {
           importance: Importance.high,
           priority: Priority.high,
           playSound: true,
-          icon: 'mipmap/ic_launcher',
+          icon: 'ic_notification',
         ),
       ),
     );

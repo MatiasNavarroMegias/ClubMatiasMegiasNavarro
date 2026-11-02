@@ -85,7 +85,7 @@ class _ClubAppState extends State<ClubApp> {
     developer.log('ClubApp.build.', name: 'ClubApp');
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'ClubMatiasMegiasNavarro',
+      title: 'Club Matias Megias Navarro',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,

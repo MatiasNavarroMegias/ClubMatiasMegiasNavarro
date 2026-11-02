@@ -193,6 +193,26 @@ El icono Android utiliza `mipmap/ic_launcher`. El splash nativo usa el fondo
 del tema de Android y desaparece cuando Flutter dibuja el primer frame; no se
 debe volver a colocar inicializacion de red o Firebase antes de `runApp`.
 
+## Identidad visual
+
+Los originales de la marca se encuentran en `assets/branding/`:
+
+- `club_logo_icon.svg` y `club_logo_icon.png`: icono simple sin texto para
+  launcher y adaptive icon.
+- `club_logo_splash.svg` y `club_logo_splash.png`: version completa para el
+  splash nativo.
+
+Para regenerar los recursos Android despues de editar los SVG:
+
+```powershell
+dart run flutter_launcher_icons
+dart run flutter_native_splash:create
+```
+
+El icono de notificaciones es `android/app/src/main/res/drawable/ic_notification.xml`.
+Es monocromatico y transparente para respetar las reglas de Android. El canal
+`club_notifications` se mantiene sin cambios.
+
 En Windows, FastAPI sigue disponible mediante:
 
 ```text
