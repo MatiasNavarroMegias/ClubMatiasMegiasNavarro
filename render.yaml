@@ -43,6 +43,22 @@ services:
       - key: SMTP_TIMEOUT_SECONDS
         value: "10"
 
+  - type: cron
+    name: club-matias-megias-navarro-reminders
+    runtime: docker
+    rootDir: backend
+    plan: free
+    schedule: "*/5 * * * *"
+    dockerCommand: python -m app.scripts.reminder_cron
+    envVars:
+      - key: REMINDER_API_URL
+        fromService:
+          name: club-matias-megias-navarro-api
+          type: web
+          property: host
+      - key: REMINDER_INTERNAL_SECRET
+        sync: false
+
 databases:
   - name: club-matias-megias-navarro-postgres
     plan: free

@@ -288,9 +288,10 @@ entorno de despliegue y nunca en `.env.example`, Git o capturas.
 
 ## Despliegue con Render
 
-El archivo `render.yaml` de la raiz define un servicio web Docker y una base
-PostgreSQL administrada. Desde Render se debe crear un Blueprint apuntando al
-repositorio y revisar los valores `sync: false` antes del primer despliegue.
+El archivo `render.yaml` de la raiz define un servicio web Docker, una base
+PostgreSQL administrada y un cron nativo de Render cada cinco minutos. Desde
+Render se debe crear un Blueprint apuntando al repositorio y revisar los
+valores `sync: false` antes del primer despliegue.
 
 La cuenta de servicio de Firebase debe cargarse como Secret File en Render con
 el nombre `firebase-admin-key.json`. El servicio espera encontrarla en
@@ -302,9 +303,10 @@ El contenedor ejecuta `alembic upgrade head` antes de iniciar Uvicorn y expone
 desarrollo actual, por lo que la construccion debe verificarse en Render o en
 un equipo con Docker.
 
-Para recordatorios, configurar una tarea cron externa cada cinco minutos con
-el ejemplo de `deploy/cron.example`. Debe usar HTTPS y el mismo valor secreto
-configurado en `REMINDER_INTERNAL_SECRET`.
+El cron nativo llama `POST /internal/reminders` mediante
+`app.scripts.reminder_cron`. Render obtiene el host del servicio web y usa
+`REMINDER_INTERNAL_SECRET` como variable secreta. El ejemplo de cron externo
+en `deploy/cron.example` queda disponible como alternativa.
 
 ## Base de datos local
 
