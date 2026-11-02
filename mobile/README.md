@@ -178,6 +178,21 @@ http://10.0.2.2:8000
 
 El emulador Android utiliza `10.0.2.2` para acceder al servidor local de la computadora.
 
+Para una compilacion release se debe proporcionar la URL publica sin eliminar
+el valor local:
+
+```powershell
+flutter build apk --release --dart-define=API_BASE_URL=https://api.example.com
+```
+
+La aplicacion conserva `http://10.0.2.2:8000` como valor predeterminado para
+desarrollo en el emulador. La version actual es `1.0.0+1`; el numero despues
+de `+` debe incrementarse en cada APK distribuido.
+
+El icono Android utiliza `mipmap/ic_launcher`. El splash nativo usa el fondo
+del tema de Android y desaparece cuando Flutter dibuja el primer frame; no se
+debe volver a colocar inicializacion de red o Firebase antes de `runApp`.
+
 En Windows, FastAPI sigue disponible mediante:
 
 ```text

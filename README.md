@@ -14,3 +14,10 @@ Proyecto en etapa inicial de configuración.
 - Firebase Authentication para autenticación.
 - Firebase Cloud Messaging para notificaciones.
 - Render para el despliegue en la nube.
+
+## Despliegue
+
+La configuracion inicial de Render se encuentra en [render.yaml](./render.yaml).
+Incluye FastAPI en Docker, PostgreSQL administrado y las variables de entorno
+necesarias sin credenciales reales. La cuenta de servicio Firebase y los
+valores SMTP deben cargarse como secretos desde el panel del proveedor.

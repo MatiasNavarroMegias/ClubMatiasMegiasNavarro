@@ -279,6 +279,26 @@ La API no permite iniciar el servicio de recuperacion en produccion si falta
 alguno de esos valores. La contrasena SMTP debe configurarse solamente en el
 entorno de despliegue y nunca en `.env.example`, Git o capturas.
 
+## Despliegue con Render
+
+El archivo `render.yaml` de la raiz define un servicio web Docker y una base
+PostgreSQL administrada. Desde Render se debe crear un Blueprint apuntando al
+repositorio y revisar los valores `sync: false` antes del primer despliegue.
+
+La cuenta de servicio de Firebase debe cargarse como Secret File en Render con
+el nombre `firebase-admin-key.json`. El servicio espera encontrarla en
+`/etc/secrets/firebase-admin-key.json`; no se debe copiar al repositorio ni
+incluirla dentro de la imagen Docker.
+
+El contenedor ejecuta `alembic upgrade head` antes de iniciar Uvicorn y expone
+`/health` como health check. Docker no esta instalado en el entorno local de
+desarrollo actual, por lo que la construccion debe verificarse en Render o en
+un equipo con Docker.
+
+Para recordatorios, configurar una tarea cron externa cada cinco minutos con
+el ejemplo de `deploy/cron.example`. Debe usar HTTPS y el mismo valor secreto
+configurado en `REMINDER_INTERNAL_SECRET`.
+
 ## Base de datos local
 
 El backend utiliza PostgreSQL como base de datos relacional y SQLAlchemy para administrar las conexiones desde Python.
