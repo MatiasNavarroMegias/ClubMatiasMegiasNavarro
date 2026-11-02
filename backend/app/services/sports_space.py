@@ -1,3 +1,4 @@
+from app.core.normalization import build_sports_space_code
 from app.models import SportsSpace
 from app.repositories import SportsSpaceRepository, VenueRepository
 from app.schemas import SportsSpaceCreate, SportsSpaceUpdate
@@ -175,6 +176,12 @@ class SportsSpaceService:
             name=sports_space_data.name,
             sport_type=sports_space_data.sport_type,
             space_number=sports_space_data.space_number,
+            composite_code=build_sports_space_code(
+                venue_name=venue.name,
+                venue_address=venue.address,
+                sport_type=sports_space_data.sport_type,
+                space_number=sports_space_data.space_number,
+            ),
             is_active=True,
         )
 
@@ -242,6 +249,17 @@ class SportsSpaceService:
         if identity_was_modified:
             self._ensure_identity_is_available(
                 sports_space=sports_space,
+                sport_type=final_sport_type,
+                space_number=final_space_number,
+            )
+            venue = self.venue_repository.get_by_id(sports_space.venue_id)
+            if venue is None:
+                raise SportsSpaceVenueNotFoundError(
+                    f"No existe una sede con el identificador {sports_space.venue_id}."
+                )
+            sports_space.composite_code = build_sports_space_code(
+                venue_name=venue.name,
+                venue_address=venue.address,
                 sport_type=final_sport_type,
                 space_number=final_space_number,
             )

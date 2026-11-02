@@ -49,6 +49,7 @@ def create_sports_space(
         name=name,
         sport_type=sport_type,
         space_number=space_number,
+        composite_code=f"Sede_Ramos_Mejia_Avenida_de_Mayo_1000_{sport_type}_{space_number}",
         is_active=is_active,
     )
 
@@ -66,6 +67,7 @@ def create_service() -> tuple[
     """
     repository = MagicMock(spec=SportsSpaceRepository)
     venue_repository = MagicMock(spec=VenueRepository)
+    venue_repository.get_by_id.return_value = create_venue()
 
     service = SportsSpaceService(
         repository=repository,
@@ -197,6 +199,7 @@ def test_create_sports_space_builds_active_model_and_persists_it() -> None:
     assert result.name == "Cancha de Futbol 1"
     assert result.sport_type == "Futbol"
     assert result.space_number == 1
+    assert result.composite_code == "Sede_Ramos_Mejia_Avenida_de_Mayo_1000_Futbol_1"
     assert result.is_active is True
 
     venue_repository.get_by_id.assert_called_once_with(7)
@@ -382,6 +385,7 @@ def test_update_sports_space_accepts_available_identity() -> None:
         ),
     )
 
+    assert result.composite_code == ("Sede_Ramos_Mejia_Avenida_de_Mayo_1000_Tenis_2")
     assert result.name == "Cancha de Tenis 2"
     assert result.sport_type == "Tenis"
     assert result.space_number == 2

@@ -47,6 +47,7 @@ def create_sports_space(
         name=name,
         sport_type=sport_type,
         space_number=space_number,
+        composite_code=f"Sede_Ramos_Mejia_Avenida_de_Mayo_1000_{sport_type}_{space_number}",
         is_active=is_active,
         created_at=audit_time,
         updated_at=audit_time,
@@ -132,6 +133,7 @@ def test_list_sports_spaces_returns_spaces(
     assert response.json()[0]["id"] == 1
     assert response.json()[1]["id"] == 2
     assert response.json()[0]["name"] == "Cancha de Futbol 1"
+    assert response.json()[0]["composite_code"] == "Sede_Ramos_Mejia_Avenida_de_Mayo_1000_Futbol_1"
 
     service.list_sports_spaces.assert_called_once_with(
         venue_id=None,
@@ -230,6 +232,7 @@ def test_get_sports_space_returns_existing_space(
     assert response.json()["venue_id"] == 7
     assert response.json()["sport_type"] == "Futbol"
     assert response.json()["space_number"] == 1
+    assert response.json()["composite_code"] == "Sede_Ramos_Mejia_Avenida_de_Mayo_1000_Futbol_1"
 
     service.get_sports_space.assert_called_once_with(1)
 

@@ -39,6 +39,10 @@ class SportsSpace(Base):
             "space_number",
             name="uq_sports_spaces_venue_sport_number",
         ),
+        UniqueConstraint(
+            "composite_code",
+            name="uq_sports_spaces_composite_code",
+        ),
         CheckConstraint(
             "space_number > 0",
             name="ck_sports_spaces_space_number_positive",
@@ -86,6 +90,13 @@ class SportsSpace(Base):
 
     # Numero que diferencia espacios del mismo deporte dentro de la sede.
     space_number: Mapped[int] = mapped_column(
+        nullable=False,
+    )
+
+    # Codigo publico generado por el backend a partir de la sede, su
+    # direccion, el tipo deportivo y el numero.
+    composite_code: Mapped[str] = mapped_column(
+        String(255),
         nullable=False,
     )
 

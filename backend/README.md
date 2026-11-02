@@ -68,6 +68,13 @@ La API queda disponible en:
 http://127.0.0.1:8000
 ```
 
+Los espacios deportivos conservan un `name` amigable para la interfaz y
+exponen un `composite_code` generado por el backend. El codigo combina
+nombre de sede, direccion, tipo y numero, elimina acentos y caracteres
+especiales, reemplaza espacios por guiones bajos y es unico en PostgreSQL.
+El codigo se regenera si cambia el nombre o direccion de la sede, el tipo o
+el numero del espacio; el nombre amigable permanece independiente.
+
 La opcion `--reload` reinicia automaticamente el servidor cuando se modifica el codigo. Esta opcion se utiliza solamente durante el desarrollo.
 
 ## Verificar el estado de la API

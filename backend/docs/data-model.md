@@ -78,9 +78,10 @@ Representa una cancha o espacio deportivo perteneciente a una sede.
 ```text
 id
 venue_id
-space_type
-number
 name
+sport_type
+space_number
+composite_code
 is_active
 created_at
 updated_at
@@ -91,7 +92,13 @@ updated_at
 - Cada espacio deportivo pertenece a una unica sede.
 - El tipo permite representar Futbol, Paddle, Basquet u otros deportes.
 - El numero diferencia espacios del mismo tipo dentro de una sede.
-- El nombre se construye utilizando sede, direccion, tipo y numero.
+- El nombre es amigable y se muestra como titulo en la aplicacion.
+- `composite_code` es generado por el backend con sede, direccion, tipo y
+  numero. Elimina acentos y caracteres especiales, reemplaza espacios por
+  guiones bajos y conserva la capitalizacion recibida.
+- `composite_code` es unico, no se envia desde Flutter y es regenerable:
+  cambia cuando se modifica el nombre o direccion de la sede, el tipo o el
+  numero del espacio. La sede de un espacio no puede cambiarse.
 
 Ejemplo:
 

@@ -22,6 +22,7 @@ def create_sports_space() -> SportsSpace:
         name="Cancha de Futbol 1",
         sport_type="Futbol",
         space_number=1,
+        composite_code="Sede_Ramos_Mejia_Avenida_de_Mayo_1000_Futbol_1",
         is_active=True,
         created_at=audit_time,
         updated_at=audit_time,
@@ -51,6 +52,7 @@ def test_sports_space_model_contains_expected_columns() -> None:
         "name",
         "sport_type",
         "space_number",
+        "composite_code",
         "is_active",
         "created_at",
         "updated_at",
@@ -66,6 +68,7 @@ def test_sports_space_required_columns_do_not_allow_null_values() -> None:
         SportsSpace.__table__.columns.name,
         SportsSpace.__table__.columns.sport_type,
         SportsSpace.__table__.columns.space_number,
+        SportsSpace.__table__.columns.composite_code,
         SportsSpace.__table__.columns.is_active,
         SportsSpace.__table__.columns.created_at,
         SportsSpace.__table__.columns.updated_at,
@@ -204,6 +207,7 @@ def test_sports_space_can_be_created_as_python_object() -> None:
     assert sports_space.name == "Cancha de Futbol 1"
     assert sports_space.sport_type == "Futbol"
     assert sports_space.space_number == 1
+    assert sports_space.composite_code == "Sede_Ramos_Mejia_Avenida_de_Mayo_1000_Futbol_1"
     assert sports_space.is_active is True
     assert sports_space.created_at == datetime(
         2026,

@@ -70,6 +70,7 @@ def create_sports_space(
         name="Cancha de Futbol 1",
         sport_type="Futbol",
         space_number=1,
+        composite_code="Sede_Ramos_Mejia_Avenida_de_Mayo_1000_Futbol_1",
         is_active=is_active,
         venue=venue or create_venue(),
     )

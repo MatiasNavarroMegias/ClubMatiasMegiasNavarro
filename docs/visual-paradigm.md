@@ -32,7 +32,12 @@ Usar PostgreSQL como sistema gestor y representar:
 - `users.email` como unico;
 - `push_devices.installation_id` como unico;
 - `reservation_reminders.reservation_id` como unico;
+- `sports_spaces.composite_code` como unico;
 - `reservations.status` con valores `confirmed` y `cancelled`.
+
+`SportsSpace.composite_code` es un identificador derivado regenerable. Se
+actualiza cuando cambia el nombre o la direccion de `Venue`, o cuando cambia
+el tipo o numero del espacio.
 
 ## Secuencia de crear reserva
 

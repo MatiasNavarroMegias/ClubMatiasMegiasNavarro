@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.models import Venue
+from app.models import SportsSpace, Venue
 from app.repositories import VenueRepository
 from app.schemas import VenueCreate, VenueUpdate
 from app.services import (
@@ -144,6 +144,34 @@ def test_update_venue_applies_partial_change() -> None:
     assert updated_venue.opening_time == time(8, 0)
     assert updated_venue.closing_time == time(23, 0)
     repository.save.assert_called_once_with(existing_venue)
+
+
+def test_update_venue_regenerates_space_codes_when_identity_address_changes() -> None:
+    service, repository = create_service()
+    existing_venue = create_venue()
+    existing_venue.sports_spaces = [
+        SportsSpace(
+            id=3,
+            venue_id=1,
+            name="Cancha de Futbol 1",
+            sport_type="Futbol",
+            space_number=1,
+            composite_code=("Sede_Ramos_Mejia_Avenida_de_Mayo_1000_Futbol_1"),
+            is_active=True,
+        )
+    ]
+    repository.get_by_id.return_value = existing_venue
+    repository.save.side_effect = lambda venue: venue
+
+    updated_venue = service.update_venue(
+        1,
+        VenueUpdate(
+            name="Moron",
+            address="Rivadavia 19850",
+        ),
+    )
+
+    assert updated_venue.sports_spaces[0].composite_code == ("Moron_Rivadavia_19850_Futbol_1")
 
 
 def test_update_venue_rejects_request_without_fields() -> None:

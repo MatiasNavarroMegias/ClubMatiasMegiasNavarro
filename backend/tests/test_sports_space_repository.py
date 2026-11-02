@@ -27,6 +27,7 @@ def create_sports_space(
         name=name,
         sport_type=sport_type,
         space_number=space_number,
+        composite_code=f"Sede_Ramos_Mejia_Avenida_de_Mayo_1000_{sport_type}_{space_number}",
         is_active=is_active,
     )
 

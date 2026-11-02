@@ -27,6 +27,7 @@ def create_reservation() -> Reservation:
         name="Cancha de Futbol 1",
         is_active=True,
         venue=venue,
+        composite_code="Sede_Ramos_Mejia_Avenida_de_Mayo_1000_Futbol_1",
     )
     return Reservation(
         id=15,

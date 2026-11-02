@@ -159,6 +159,7 @@ class SportsSpaceResponse(BaseModel):
     name: str
     sport_type: str
     space_number: int
+    composite_code: str
     is_active: bool
     created_at: datetime
     updated_at: datetime

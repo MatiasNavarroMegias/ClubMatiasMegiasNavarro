@@ -38,6 +38,7 @@ def test_sports_space_create_rejects_invalid_venue_id() -> None:
             name="Cancha de Futbol 1",
             sport_type="Futbol",
             space_number=1,
+            composite_code="Sede_Ramos_Mejia_Avenida_de_Mayo_1000_Futbol_1",
         )
 
 
@@ -193,6 +194,7 @@ def test_sports_space_response_can_be_created_from_model() -> None:
         name="Cancha de Futbol 1",
         sport_type="Futbol",
         space_number=1,
+        composite_code="Sede_Ramos_Mejia_Avenida_de_Mayo_1000_Futbol_1",
         is_active=True,
         created_at=audit_time,
         updated_at=audit_time,
@@ -207,6 +209,7 @@ def test_sports_space_response_can_be_created_from_model() -> None:
     assert response.name == "Cancha de Futbol 1"
     assert response.sport_type == "Futbol"
     assert response.space_number == 1
+    assert response.composite_code == "Sede_Ramos_Mejia_Avenida_de_Mayo_1000_Futbol_1"
     assert response.is_active is True
     assert response.created_at == audit_time
     assert response.updated_at == audit_time

@@ -1,5 +1,6 @@
 from datetime import time
 
+from app.core.normalization import build_sports_space_code
 from app.models import Venue
 from app.repositories import VenueRepository
 from app.schemas import VenueCreate, VenueUpdate
@@ -159,6 +160,15 @@ class VenueService:
 
         for field_name, new_value in effective_changes.items():
             setattr(venue, field_name, new_value)
+
+        if {"name", "address"} & effective_changes.keys():
+            for sports_space in venue.sports_spaces:
+                sports_space.composite_code = build_sports_space_code(
+                    venue_name=venue.name,
+                    venue_address=venue.address,
+                    sport_type=sports_space.sport_type,
+                    space_number=sports_space.space_number,
+                )
 
         return self.repository.save(venue)
 
