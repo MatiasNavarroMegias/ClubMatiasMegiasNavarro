@@ -17,12 +17,13 @@ from app.repositories import (
     UserRepository,
 )
 from app.services import (
+    BrevoRecoveryCodeNotifier,
     DevelopmentRecoveryCodeNotifier,
     InvalidPasswordRecoveryCodeError,
     PasswordRecoveryAttemptsExceededError,
     PasswordRecoveryService,
-    SMTPRecoveryCodeNotifier,
 )
+from app.services.recovery_notifier import RecoveryCodeDeliveryError
 
 PUBLIC_MESSAGE = (
     "Si el correo pertenece a una cuenta, recibiras instrucciones para recuperar la contrasena."
@@ -120,7 +121,7 @@ def test_get_password_recovery_service_builds_dependencies():
     assert service.maximum_attempts == 5
 
 
-def test_get_password_recovery_service_builds_smtp_notifier_in_production():
+def test_get_password_recovery_service_builds_brevo_notifier_in_production():
     """
     Verifica que la consola no pueda utilizarse en produccion.
     """
@@ -131,13 +132,12 @@ def test_get_password_recovery_service_builds_smtp_notifier_in_production():
     settings = MagicMock()
     settings.app_env = "production"
     settings.jwt_secret_key = "clave-secreta-de-produccion-con-longitud-segura"
-    settings.smtp_host = "smtp.example.com"
-    settings.smtp_port = 587
-    settings.smtp_username = "smtp-user"
-    settings.smtp_password = "smtp-password"
-    settings.smtp_from_email = "no-reply@example.com"
-    settings.smtp_use_tls = True
-    settings.smtp_timeout_seconds = 10
+    settings.recovery_notifier_provider = "brevo"
+    settings.brevo_api_key = "brevo-api-key"
+    settings.brevo_from_email = "no-reply@example.com"
+    settings.brevo_from_name = "Club Matias Megias Navarro"
+    settings.brevo_api_url = "https://api.brevo.test/v3/smtp/email"
+    settings.brevo_timeout_seconds = 10
 
     with patch(
         "app.api.dependencies.get_settings",
@@ -145,21 +145,18 @@ def test_get_password_recovery_service_builds_smtp_notifier_in_production():
     ):
         service = get_password_recovery_service(database_session)
 
-    assert isinstance(service.notifier, SMTPRecoveryCodeNotifier)
+    assert isinstance(service.notifier, BrevoRecoveryCodeNotifier)
 
 
-def test_get_password_recovery_service_rejects_incomplete_smtp_in_production():
+def test_get_password_recovery_service_rejects_non_brevo_in_production():
     database_session = MagicMock(spec=Session)
     settings = MagicMock()
     settings.app_env = "production"
     settings.jwt_secret_key = "clave-secreta-de-produccion-con-longitud-segura"
-    settings.smtp_host = None
-    settings.smtp_username = None
-    settings.smtp_password = None
-    settings.smtp_from_email = None
+    settings.recovery_notifier_provider = "development"
 
     with patch("app.api.dependencies.get_settings", return_value=settings):
-        with pytest.raises(RuntimeError, match="requiere configuracion SMTP completa"):
+        with pytest.raises(RuntimeError, match="RECOVERY_NOTIFIER_PROVIDER=brevo"):
             get_password_recovery_service(database_session)
 
 
@@ -184,6 +181,23 @@ def test_request_password_recovery_returns_generic_message(
     }
 
     service.request_recovery.assert_called_once()
+
+
+def test_request_password_recovery_returns_503_for_delivery_failure(
+    password_recovery_api,
+):
+    client, service = password_recovery_api
+    service.request_recovery.side_effect = RecoveryCodeDeliveryError("external failure")
+
+    response = client.post(
+        "/auth/password-recovery/request",
+        json=valid_request_json(),
+    )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "El servicio de recuperacion no esta disponible temporalmente."
+    }
 
 
 def test_request_password_recovery_normalizes_email(

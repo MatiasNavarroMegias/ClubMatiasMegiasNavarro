@@ -20,6 +20,7 @@ from app.services import (
     InvalidPasswordRecoveryCodeError,
     PasswordRecoveryAttemptsExceededError,
 )
+from app.services.recovery_notifier import RecoveryCodeDeliveryError
 
 # Agrupa los endpoints relacionados con autenticacion.
 router = APIRouter(
@@ -123,9 +124,13 @@ def request_password_recovery(
     Durante el desarrollo, el codigo se muestra en la consola del
     backend mediante DevelopmentRecoveryCodeNotifier.
     """
-    message = service.request_recovery(
-        recovery_data,
-    )
+    try:
+        message = service.request_recovery(recovery_data)
+    except RecoveryCodeDeliveryError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="El servicio de recuperacion no esta disponible temporalmente.",
+        ) from error
 
     return PasswordRecoveryMessage(
         message=message,

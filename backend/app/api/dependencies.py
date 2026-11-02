@@ -26,6 +26,7 @@ from app.repositories import (
 from app.services import (
     AuthService,
     AvailabilityService,
+    BrevoRecoveryCodeNotifier,
     DevelopmentRecoveryCodeNotifier,
     FirebasePushSender,
     PasswordRecoveryService,
@@ -101,8 +102,7 @@ def get_password_recovery_service(
     codigos temporales. La clave JWT tambien protege el resumen HMAC
     del codigo de recuperacion.
 
-    Durante el desarrollo, el codigo se registra mediante logging.
-    En produccion se utiliza SMTP configurado por variables de entorno.
+    El notificador se selecciona mediante RECOVERY_NOTIFIER_PROVIDER.
 
     Args:
         database_session: Sesion asociada a la solicitud actual.
@@ -124,7 +124,24 @@ def get_password_recovery_service(
         code_length=8,
     )
     password_hasher = PasswordHasher()
-    if settings.app_env == "production":
+    if settings.app_env == "production" and settings.recovery_notifier_provider != "brevo":
+        raise RuntimeError("Produccion requiere RECOVERY_NOTIFIER_PROVIDER=brevo.")
+
+    if settings.recovery_notifier_provider == "brevo":
+        required_brevo_values = (
+            settings.brevo_api_key,
+            settings.brevo_from_email,
+        )
+        if any(value is None or not value.strip() for value in required_brevo_values):
+            raise RuntimeError("Brevo requiere API key y remitente configurados.")
+        notifier = BrevoRecoveryCodeNotifier(
+            api_key=settings.brevo_api_key,
+            sender=settings.brevo_from_email,
+            sender_name=settings.brevo_from_name,
+            api_url=settings.brevo_api_url,
+            timeout_seconds=settings.brevo_timeout_seconds,
+        )
+    elif settings.recovery_notifier_provider == "smtp":
         required_smtp_values = (
             settings.smtp_host,
             settings.smtp_username,

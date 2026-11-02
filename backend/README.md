@@ -269,22 +269,31 @@ revelar si un correo esta registrado. El codigo numerico se genera con
 queda invalidado despues de cinco intentos fallidos o de un uso correcto.
 
 En desarrollo y testing el codigo se registra mediante el logger de la
-aplicacion. En produccion es obligatorio configurar SMTP:
+aplicacion. Si se necesita probar un servidor local, SMTP sigue disponible
+con `RECOVERY_NOTIFIER_PROVIDER=smtp`; sus credenciales nunca deben subirse
+al repositorio.
+
+Render Free bloquea las conexiones SMTP salientes. Por eso produccion utiliza
+Brevo mediante HTTPS y conserva SMTP solamente para desarrollo local cuando
+`RECOVERY_NOTIFIER_PROVIDER=smtp`. En produccion se debe usar
+`RECOVERY_NOTIFIER_PROVIDER=brevo`, configurar un remitente verificado en
+Brevo y crear una API key SMTP/API desde la consola de Brevo. La clave se
+guarda unicamente como secreto `BREVO_API_KEY` en Render.
+
+Variables de produccion:
 
 ```env
-APP_ENV=production
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_USERNAME=replace-with-smtp-user
-SMTP_PASSWORD=replace-with-smtp-password
-SMTP_FROM_EMAIL=no-reply@example.com
-SMTP_USE_TLS=true
-SMTP_TIMEOUT_SECONDS=10
+RECOVERY_NOTIFIER_PROVIDER=brevo
+BREVO_API_KEY=secret-configured-only-in-render
+BREVO_FROM_EMAIL=verified-sender@example.com
+BREVO_FROM_NAME=Club Matias Megias Navarro
+BREVO_API_URL=https://api.brevo.com/v3/smtp/email
+BREVO_TIMEOUT_SECONDS=10
 ```
 
-La API no permite iniciar el servicio de recuperacion en produccion si falta
-alguno de esos valores. La contrasena SMTP debe configurarse solamente en el
-entorno de despliegue y nunca en `.env.example`, Git o capturas.
+La API devuelve HTTP 503 con un mensaje generico si Brevo no puede entregar
+el correo. El token recien creado se invalida para que no quede utilizable.
+La respuesta publica continua siendo generica y no permite enumerar cuentas.
 
 ## Despliegue con Render
 

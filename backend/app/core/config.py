@@ -2,7 +2,7 @@ from functools import lru_cache
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -70,6 +70,12 @@ class Settings(BaseSettings):
     smtp_from_email: str | None = None
     smtp_use_tls: bool = True
     smtp_timeout_seconds: int = Field(default=10, gt=0)
+    recovery_notifier_provider: Literal["development", "smtp", "brevo"] = "development"
+    brevo_api_key: str | None = None
+    brevo_from_email: str | None = None
+    brevo_from_name: str = "Club Matias Megias Navarro"
+    brevo_api_url: str = "https://api.brevo.com/v3/smtp/email"
+    brevo_timeout_seconds: int = Field(default=10, gt=0)
 
     @field_validator("app_timezone")
     @classmethod
@@ -100,6 +106,17 @@ class Settings(BaseSettings):
             raise ValueError("La zona horaria de la aplicacion no es valida.") from error
 
         return normalized_value
+
+    @model_validator(mode="after")
+    def validate_recovery_notifier(self) -> Settings:
+        if self.app_env == "production":
+            if self.recovery_notifier_provider != "brevo":
+                raise ValueError("Produccion requiere RECOVERY_NOTIFIER_PROVIDER=brevo.")
+            if not self.brevo_api_key or not self.brevo_api_key.strip():
+                raise ValueError("Produccion requiere BREVO_API_KEY.")
+            if not self.brevo_from_email or not self.brevo_from_email.strip():
+                raise ValueError("Produccion requiere BREVO_FROM_EMAIL.")
+        return self
 
     # Configura la lectura del archivo .env.
     #

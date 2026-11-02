@@ -11,7 +11,10 @@ from app.schemas import (
     PasswordRecoveryConfirm,
     PasswordRecoveryRequest,
 )
-from app.services.recovery_notifier import RecoveryCodeNotifier
+from app.services.recovery_notifier import (
+    RecoveryCodeDeliveryError,
+    RecoveryCodeNotifier,
+)
 
 
 class InvalidPasswordRecoveryCodeError(Exception):
@@ -134,10 +137,15 @@ class PasswordRecoveryService:
             recovery_token,
         )
 
-        self.notifier.send_recovery_code(
-            email=user.email,
-            code=generated_code,
-        )
+        try:
+            self.notifier.send_recovery_code(
+                email=user.email,
+                code=generated_code,
+            )
+        except RecoveryCodeDeliveryError:
+            recovery_token.used_at = current_datetime
+            self.recovery_repository.save(recovery_token)
+            raise
 
         return self.public_request_message
 

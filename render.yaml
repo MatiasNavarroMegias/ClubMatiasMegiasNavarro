@@ -28,19 +28,17 @@ services:
         value: /etc/secrets/firebase-admin-key.json
       - key: REMINDER_INTERNAL_SECRET
         sync: false
-      - key: SMTP_HOST
+      - key: RECOVERY_NOTIFIER_PROVIDER
+        value: brevo
+      - key: BREVO_API_KEY
         sync: false
-      - key: SMTP_PORT
-        value: "587"
-      - key: SMTP_USERNAME
+      - key: BREVO_FROM_EMAIL
         sync: false
-      - key: SMTP_PASSWORD
-        sync: false
-      - key: SMTP_FROM_EMAIL
-        sync: false
-      - key: SMTP_USE_TLS
-        value: "true"
-      - key: SMTP_TIMEOUT_SECONDS
+      - key: BREVO_FROM_NAME
+        value: Club Matias Megias Navarro
+      - key: BREVO_API_URL
+        value: https://api.brevo.com/v3/smtp/email
+      - key: BREVO_TIMEOUT_SECONDS
         value: "10"
 
 databases:

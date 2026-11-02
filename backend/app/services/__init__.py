@@ -21,7 +21,9 @@ from app.services.password_recovery import (
 )
 from app.services.push_device import PushDeviceService
 from app.services.recovery_notifier import (
+    BrevoRecoveryCodeNotifier,
     DevelopmentRecoveryCodeNotifier,
+    RecoveryCodeDeliveryError,
     RecoveryCodeNotifier,
     SMTPRecoveryCodeNotifier,
 )
@@ -60,6 +62,8 @@ from app.services.venue import (
 
 __all__ = [
     "DevelopmentRecoveryCodeNotifier",
+    "BrevoRecoveryCodeNotifier",
+    "RecoveryCodeDeliveryError",
     "SMTPRecoveryCodeNotifier",
     "InvalidPasswordRecoveryCodeError",
     "PasswordRecoveryAttemptsExceededError",

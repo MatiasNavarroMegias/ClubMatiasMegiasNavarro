@@ -18,7 +18,10 @@ from app.services import (
     PasswordRecoveryAttemptsExceededError,
     PasswordRecoveryService,
 )
-from app.services.recovery_notifier import RecoveryCodeNotifier
+from app.services.recovery_notifier import (
+    RecoveryCodeDeliveryError,
+    RecoveryCodeNotifier,
+)
 
 CURRENT_DATETIME = datetime(
     2026,
@@ -325,6 +328,30 @@ def test_request_recovery_sends_original_code():
         code="48392175",
     )
 
+    password_hasher.hash.assert_not_called()
+
+
+def test_request_recovery_invalidates_token_when_delivery_fails():
+    (
+        service,
+        user_repository,
+        recovery_repository,
+        code_service,
+        password_hasher,
+        notifier,
+    ) = create_service()
+
+    user_repository.get_by_email.return_value = create_user()
+    code_service.generate_code.return_value = "48392175"
+    code_service.create_digest.return_value = "digest-generado"
+    notifier.send_recovery_code.side_effect = RecoveryCodeDeliveryError("delivery failed")
+
+    with pytest.raises(RecoveryCodeDeliveryError):
+        service.request_recovery(create_request())
+
+    recovery_token = recovery_repository.add.call_args.args[0]
+    recovery_repository.save.assert_called_once_with(recovery_token)
+    assert recovery_token.used_at == CURRENT_DATETIME
     password_hasher.hash.assert_not_called()
 
 
