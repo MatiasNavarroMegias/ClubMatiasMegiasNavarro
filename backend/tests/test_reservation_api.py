@@ -81,6 +81,7 @@ def create_reservation(
         0,
         tzinfo=APPLICATION_TIMEZONE,
     )
+
     audit_time = datetime(
         2026,
         10,
@@ -240,6 +241,38 @@ def test_create_reservation_uses_authenticated_user(
     )
     assert reservation_data.start_at.utcoffset() == timedelta(
         hours=-3,
+    )
+
+
+def test_create_reservation_accepts_end_at_for_multiple_hours(
+    reservation_api: tuple[
+        TestClient,
+        MagicMock,
+        User,
+    ],
+) -> None:
+    client, service, current_user = reservation_api
+    service.create_reservation.return_value = create_reservation(
+        user_id=current_user.id,
+    )
+
+    response = client.post(
+        "/reservations",
+        json={
+            **valid_reservation_json(),
+            "end_at": "2026-11-03T20:00:00-03:00",
+        },
+    )
+
+    assert response.status_code == 201
+    reservation_data = service.create_reservation.call_args.kwargs["reservation_data"]
+    assert reservation_data.end_at == datetime(
+        2026,
+        11,
+        3,
+        20,
+        0,
+        tzinfo=APPLICATION_TIMEZONE,
     )
 
 

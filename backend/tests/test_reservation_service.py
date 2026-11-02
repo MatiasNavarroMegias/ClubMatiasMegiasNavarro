@@ -11,6 +11,7 @@ from app.repositories import (
 )
 from app.schemas import ReservationCreate
 from app.services import (
+    ReservationInvalidDurationError,
     ReservationInvalidStartTimeError,
     ReservationOutsideVenueHoursError,
     ReservationService,
@@ -109,6 +110,7 @@ def create_service(
 def create_reservation_data(
     *,
     start_at: datetime | None = None,
+    end_at: datetime | None = None,
 ) -> ReservationCreate:
     """
     Construye los datos de una reserva futura valida.
@@ -124,6 +126,7 @@ def create_reservation_data(
             0,
             tzinfo=APPLICATION_TIMEZONE,
         ),
+        end_at=end_at,
     )
 
 
@@ -171,6 +174,59 @@ def test_create_reservation_builds_confirmed_one_hour_reservation() -> None:
         end_at=result.end_at,
     )
     reservation_repository.add.assert_called_once_with(result)
+
+
+@pytest.mark.parametrize("hours", [2, 3])
+def test_create_reservation_accepts_multiple_complete_hours(hours: int) -> None:
+    service, reservation_repository, sports_repository = create_service()
+    sports_repository.get_by_id.return_value = create_sports_space()
+    reservation_repository.get_overlapping_confirmed.return_value = None
+    reservation_repository.add.side_effect = lambda reservation: reservation
+
+    start_at = datetime(2026, 11, 3, 18, 0, tzinfo=APPLICATION_TIMEZONE)
+    result = service.create_reservation(
+        user_id=5,
+        reservation_data=create_reservation_data(
+            start_at=start_at,
+            end_at=start_at + timedelta(hours=hours),
+        ),
+    )
+
+    assert result.end_at == start_at + timedelta(hours=hours)
+
+
+@pytest.mark.parametrize(
+    ("end_at", "expected_message"),
+    [
+        (
+            datetime(2026, 11, 3, 18, 30, tzinfo=APPLICATION_TIMEZONE),
+            "finalizar",
+        ),
+        (
+            datetime(2026, 11, 3, 18, 0, tzinfo=APPLICATION_TIMEZONE),
+            "una o mas horas",
+        ),
+        (
+            datetime(2026, 11, 3, 19, 30, tzinfo=APPLICATION_TIMEZONE),
+            "finalizar",
+        ),
+    ],
+)
+def test_create_reservation_rejects_invalid_duration(
+    end_at: datetime,
+    expected_message: str,
+) -> None:
+    service, reservation_repository, sports_repository = create_service()
+    sports_repository.get_by_id.return_value = create_sports_space()
+
+    with pytest.raises(ReservationInvalidDurationError, match=expected_message):
+        service.create_reservation(
+            user_id=5,
+            reservation_data=create_reservation_data(end_at=end_at),
+        )
+
+    reservation_repository.get_overlapping_confirmed.assert_not_called()
+    reservation_repository.add.assert_not_called()
 
 
 def test_create_reservation_uses_authenticated_user_id() -> None:

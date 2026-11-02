@@ -21,9 +21,11 @@ class ReservationNotificationService:
         *,
         push_device_repository: PushDeviceRepository,
         sender: FirebasePushSender,
+        timezone: ZoneInfo,
     ) -> None:
         self.push_device_repository = push_device_repository
         self.sender = sender
+        self.timezone = timezone
 
     def notify_reservation_created(self, reservation: Reservation) -> bool:
         return self._notify(
@@ -73,10 +75,9 @@ class ReservationNotificationService:
                 )
         return all_sent
 
-    @staticmethod
-    def _reservation_body(reservation: Reservation) -> str:
-        start_at = reservation.start_at
-        end_at = reservation.end_at
+    def _reservation_body(self, reservation: Reservation) -> str:
+        start_at = reservation.start_at.astimezone(self.timezone)
+        end_at = reservation.end_at.astimezone(self.timezone)
         return (
             f"{reservation.sports_space.venue.name} - "
             f"{reservation.sports_space.name}, "

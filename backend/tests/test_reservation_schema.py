@@ -55,7 +55,7 @@ def test_reservation_create_rejects_datetime_without_timezone() -> None:
     """
     with pytest.raises(
         ValidationError,
-        match="La fecha de inicio debe incluir una zona horaria",
+        match="La fecha de la reserva debe incluir una zona horaria",
     ):
         ReservationCreate(
             sports_space_id=8,
@@ -79,7 +79,6 @@ def test_reservation_create_rejects_invalid_sports_space_id() -> None:
     [
         ("id", 99),
         ("user_id", 5),
-        ("end_at", "2026-11-02T19:00:00-03:00"),
         ("status", "confirmed"),
         ("cancelled_at", None),
         ("created_at", "2026-10-27T12:00:00Z"),
@@ -93,8 +92,8 @@ def test_reservation_create_rejects_protected_fields(
     """
     Verifica que el cliente no pueda enviar campos internos.
 
-    El usuario, la finalizacion, el estado y las fechas de auditoria
-    seran administrados exclusivamente por el backend.
+    El usuario, el estado y las fechas de auditoria seran administrados
+    exclusivamente por el backend.
     """
     payload = {
         "sports_space_id": 8,

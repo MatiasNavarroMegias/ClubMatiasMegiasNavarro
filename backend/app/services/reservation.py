@@ -44,6 +44,12 @@ class ReservationInvalidStartTimeError(Exception):
     """
 
 
+class ReservationInvalidDurationError(Exception):
+    """
+    Indica que la duracion no es de una o mas horas completas.
+    """
+
+
 class ReservationOutsideVenueHoursError(Exception):
     """
     Indica que el turno queda fuera del horario de la sede.
@@ -115,11 +121,10 @@ class ReservationService:
         reservation_data: ReservationCreate,
     ) -> Reservation:
         """
-        Crea una reserva confirmada de una hora completa.
+        Crea una reserva confirmada de una o mas horas completas.
 
-        El usuario se recibe desde la sesion autenticada y no desde el
-        cuerpo de la solicitud. El horario final se calcula sumando una
-        hora al inicio solicitado.
+        Si no se informa un final, se conserva la reserva rapida de una
+        hora. Cuando se informa, se valida el intervalo completo.
 
         Args:
             user_id: Identificador del usuario autenticado.
@@ -139,6 +144,8 @@ class ReservationService:
                 al futuro.
             ReservationInvalidStartTimeError: Cuando el horario no
                 comienza en una hora completa.
+            ReservationInvalidDurationError: Cuando el intervalo no
+                dura una o mas horas completas.
             ReservationOutsideVenueHoursError: Cuando el turno queda
                 fuera del horario de la sede.
             ReservationTimeConflictError: Cuando existe una reserva
@@ -175,7 +182,20 @@ class ReservationService:
         if not self._starts_on_full_hour(start_at):
             raise ReservationInvalidStartTimeError("La reserva debe comenzar en una hora completa.")
 
-        end_at = start_at + timedelta(hours=1)
+        end_at = reservation_data.end_at
+        if end_at is None:
+            end_at = start_at + timedelta(hours=1)
+        else:
+            end_at = self._normalize_datetime(end_at)
+
+        if not self._starts_on_full_hour(end_at):
+            raise ReservationInvalidDurationError("La reserva debe finalizar en una hora completa.")
+
+        duration = end_at - start_at
+        if duration < timedelta(hours=1) or duration.total_seconds() % 3600 != 0:
+            raise ReservationInvalidDurationError(
+                "La reserva debe durar una o mas horas completas."
+            )
 
         opening_datetime = datetime.combine(
             start_at.date(),

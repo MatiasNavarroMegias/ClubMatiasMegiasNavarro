@@ -12,9 +12,8 @@ class ReservationCreate(BaseModel):
     """
     Representa los datos enviados para crear una reserva.
 
-    El usuario se obtiene desde el token autenticado. La hora final,
-    el estado y las fechas de auditoria son administrados por el
-    backend y no deben ser enviados por el cliente.
+    El usuario se obtiene desde el token autenticado. El estado y las
+    fechas de auditoria son administrados por el backend.
     """
 
     sports_space_id: int = Field(
@@ -26,12 +25,17 @@ class ReservationCreate(BaseModel):
         examples=["2026-11-02T18:00:00-03:00"],
     )
 
-    @field_validator("start_at")
+    end_at: datetime | None = Field(
+        default=None,
+        examples=["2026-11-02T20:00:00-03:00"],
+    )
+
+    @field_validator("start_at", "end_at")
     @classmethod
     def validate_timezone(
         cls,
-        value: datetime,
-    ) -> datetime:
+        value: datetime | None,
+    ) -> datetime | None:
         """
         Verifica que la fecha incluya informacion de zona horaria.
 
@@ -41,13 +45,13 @@ class ReservationCreate(BaseModel):
         La fecha futura, la hora completa y la duracion se validaran
         posteriormente dentro del servicio.
         """
-        if value.tzinfo is None or value.utcoffset() is None:
-            raise ValueError("La fecha de inicio debe incluir una zona horaria.")
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError("La fecha de la reserva debe incluir una zona horaria.")
 
         return value
 
-    # Impide que el cliente envie user_id, end_at, status y otros
-    # campos administrados internamente.
+    # Impide que el cliente envie user_id, status y otros campos
+    # administrados internamente.
     model_config = ConfigDict(
         extra="forbid",
     )

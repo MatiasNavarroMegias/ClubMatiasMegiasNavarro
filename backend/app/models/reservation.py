@@ -89,8 +89,8 @@ class Reservation(Base):
 
     # Fecha y hora de finalizacion del turno.
     #
-    # El servicio validara que sea exactamente una hora posterior al
-    # inicio. PostgreSQL garantiza como minimo que sea posterior.
+    # El servicio validara que sea una o mas horas completas posterior
+    # al inicio. PostgreSQL garantiza como minimo que sea posterior.
     end_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

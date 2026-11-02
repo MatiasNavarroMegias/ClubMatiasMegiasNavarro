@@ -362,6 +362,7 @@ def get_reservation_notification_service(
             credentials_path=settings.firebase_credentials_path,
             project_id=settings.firebase_project_id,
         ),
+        timezone=ZoneInfo(settings.app_timezone),
     )
 
 

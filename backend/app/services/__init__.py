@@ -28,6 +28,7 @@ from app.services.recovery_notifier import (
 from app.services.reservation import (
     ReservationAlreadyCancelledError,
     ReservationAlreadyStartedError,
+    ReservationInvalidDurationError,
     ReservationInvalidStartTimeError,
     ReservationNotFoundError,
     ReservationOutsideVenueHoursError,
@@ -81,6 +82,7 @@ __all__ = [
     "ReservationAlreadyCancelledError",
     "ReservationAlreadyStartedError",
     "ReservationInvalidStartTimeError",
+    "ReservationInvalidDurationError",
     "ReservationNotFoundError",
     "ReservationOutsideVenueHoursError",
     "ReservationService",

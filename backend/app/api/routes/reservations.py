@@ -8,6 +8,7 @@ from app.schemas import ReservationCreate, ReservationResponse
 from app.services import (
     ReservationAlreadyCancelledError,
     ReservationAlreadyStartedError,
+    ReservationInvalidDurationError,
     ReservationInvalidStartTimeError,
     ReservationNotFoundError,
     ReservationOutsideVenueHoursError,
@@ -38,9 +39,9 @@ def create_reservation(
     """
     Crea una reserva confirmada para el usuario autenticado.
 
-    El usuario se obtiene desde el token Bearer. El cliente solamente
-    envia el espacio deportivo y el horario de inicio. El servicio
-    calcula la finalizacion, valida el horario y evita superposiciones.
+    El usuario se obtiene desde el token Bearer. El cliente envia el
+    espacio deportivo y el intervalo solicitado. Si no informa el final,
+    el servicio conserva la reserva rapida de una hora.
 
     Raises:
         HTTPException: Con codigo 404 cuando el espacio no existe.
@@ -73,6 +74,7 @@ def create_reservation(
     except (
         ReservationStartInPastError,
         ReservationInvalidStartTimeError,
+        ReservationInvalidDurationError,
         ReservationOutsideVenueHoursError,
     ) as error:
         raise HTTPException(

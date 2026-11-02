@@ -49,6 +49,7 @@ def test_created_reservation_sends_expected_message_to_active_devices() -> None:
     service = ReservationNotificationService(
         push_device_repository=device_repository,
         sender=sender,
+        timezone=APPLICATION_TIMEZONE,
     )
 
     service.notify_reservation_created(create_reservation())
@@ -67,11 +68,36 @@ def test_cancelled_reservation_sends_expected_message() -> None:
     service = ReservationNotificationService(
         push_device_repository=device_repository,
         sender=sender,
+        timezone=APPLICATION_TIMEZONE,
     )
 
     service.notify_reservation_cancelled(create_reservation())
 
     sender.send.assert_not_called()
+
+
+def test_notification_formats_utc_database_value_in_venue_timezone() -> None:
+    sender = MagicMock()
+    device_repository = MagicMock(spec=PushDeviceRepository)
+    device_repository.list_active_by_user_id.return_value = [
+        PushDevice(installation_id="fid-1", user_id=7, platform="android", is_active=True),
+    ]
+    reservation = create_reservation()
+    reservation.start_at = datetime(2026, 11, 3, 23, 0, tzinfo=ZoneInfo("UTC"))
+    reservation.end_at = datetime(2026, 11, 4, 1, 0, tzinfo=ZoneInfo("UTC"))
+    service = ReservationNotificationService(
+        push_device_repository=device_repository,
+        sender=sender,
+        timezone=APPLICATION_TIMEZONE,
+    )
+
+    service.notify_reservation_created(reservation)
+
+    sender.send.assert_called_once_with(
+        installation_id="fid-1",
+        title="Reserva confirmada",
+        body=("Sede Ramos Mejia - Cancha de Futbol 1, 03/11/2026 20:00 a 22:00."),
+    )
 
 
 def test_reminder_marks_reservation_only_after_success_and_skips_duplicates() -> None:
