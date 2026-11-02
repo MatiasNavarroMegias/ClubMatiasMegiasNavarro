@@ -2389,13 +2389,53 @@ La migracion agrega:
 ## Verificacion del backend
 
 ```powershell
-python -m ruff check .
-python -m ruff format --check .
-python -m pytest -q
+python -m ruff check app tests migrations
+python -m pytest
+python -m alembic current
+python -m alembic heads
+python -m alembic check
 ```
 
 Resultado actual:
 
 ```text
-220 pruebas aprobadas
+502 pruebas aprobadas
 ```
+
+## Validacion de produccion
+
+La API publica se encuentra en:
+
+```text
+https://club-matias-megias-navarro-api.onrender.com
+```
+
+Swagger:
+
+```text
+https://club-matias-megias-navarro-api.onrender.com/docs
+```
+
+Render ejecuta `alembic upgrade head`, el seed y Uvicorn mediante Docker.
+PostgreSQL es administrado por Render. El seed crea cuatro sedes y 24
+espacios en una base vacia, es idempotente y se ejecuta en cada arranque.
+
+Firebase Admin se configura mediante el Secret File
+`firebase-admin-key.json`, montado fuera de la imagen. Brevo se configura
+mediante API HTTPS con `BREVO_API_KEY` y un remitente verificado. Render Free
+bloquea SMTP saliente, por lo que las variables SMTP no forman parte del
+despliegue productivo.
+
+Variables documentadas sin valores reales:
+
+```text
+APP_ENV, APP_DEBUG, DATABASE_URL, JWT_SECRET_KEY, JWT_ALGORITHM,
+ACCESS_TOKEN_EXPIRE_MINUTES, APP_TIMEZONE, FIREBASE_CREDENTIALS_PATH,
+FIREBASE_PROJECT_ID, REMINDER_INTERNAL_SECRET,
+RECOVERY_NOTIFIER_PROVIDER, BREVO_API_KEY, BREVO_FROM_EMAIL,
+BREVO_FROM_NAME, BREVO_API_URL, BREVO_TIMEOUT_SECONDS
+```
+
+El endpoint `POST /internal/reminders` se invoca cada cinco minutos mediante
+un programador HTTPS externo gratuito. El encabezado
+`X-Reminder-Secret` nunca debe aparecer con su valor real en documentacion.

@@ -16,6 +16,11 @@ PushDevice
 ReservationReminder
 ```
 
+El catalogo inicial de produccion contiene cuatro sedes activas y 24
+espacios deportivos. Cada sede tiene tres deportes y dos espacios por
+deporte. La carga se realiza mediante un seed idempotente, no mediante una
+migracion de esquema.
+
 ## User
 
 Representa una persona registrada en la aplicacion.
@@ -150,6 +155,8 @@ Una reserva cuyo horario ya finalizo permanece activa como registro historico, s
 - No pueden existir reservas activas superpuestas para el mismo espacio y fecha.
 - Una reserva cancelada libera nuevamente el horario.
 - Las reservas finalizadas deben continuar visibles dentro del historial.
+- La fecha y los horarios se interpretan en
+  `America/Argentina/Buenos_Aires`.
 
 ### Regla de superposicion
 
@@ -273,6 +280,22 @@ push_devices.user_id
 reservation_reminders.reservation_id
 → reservations.id
 ```
+
+## Servicios externos y configuracion
+
+- Render aloja el servicio web y PostgreSQL administrado.
+- Firebase Admin utiliza un Secret File fuera del repositorio para FCM.
+- Brevo envia recuperacion de contrasena mediante HTTPS. Render Free bloquea
+  SMTP saliente, por lo que SMTP no se usa en produccion.
+- El endpoint de recordatorios requiere `REMINDER_INTERNAL_SECRET` y es
+  invocado por un scheduler HTTPS externo.
+
+Los nombres de variables se documentan sin valores reales:
+`DATABASE_URL`, `JWT_SECRET_KEY`, `FIREBASE_CREDENTIALS_PATH`,
+`FIREBASE_PROJECT_ID`, `REMINDER_INTERNAL_SECRET`,
+`RECOVERY_NOTIFIER_PROVIDER`, `BREVO_API_KEY`, `BREVO_FROM_EMAIL`,
+`BREVO_FROM_NAME`, `BREVO_API_URL`, `BREVO_TIMEOUT_SECONDS` y
+`APP_TIMEZONE`.
 
 ## Identificacion del usuario autenticado
 

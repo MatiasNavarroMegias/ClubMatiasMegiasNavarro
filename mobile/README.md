@@ -59,13 +59,13 @@ flutter devices --device-timeout 60
 ## Ejecutar la aplicacion
 
 ```powershell
-flutter run
+flutter run -d emulator-5554
 ```
 
-Para ejecutar en un dispositivo especifico:
+Para ejecutar contra la API publica:
 
 ```powershell
-flutter run -d emulator-5554
+flutter run -d emulator-5554 --dart-define=API_BASE_URL=https://club-matias-megias-navarro-api.onrender.com
 ```
 
 El identificador debe coincidir con el valor mostrado por `flutter devices`.
@@ -178,11 +178,16 @@ http://10.0.2.2:8000
 
 El emulador Android utiliza `10.0.2.2` para acceder al servidor local de la computadora.
 
-Para una compilacion release se debe proporcionar la URL publica sin eliminar
-el valor local:
+Para una compilacion release con la URL publica:
 
 ```powershell
-flutter build apk --release --dart-define=API_BASE_URL=https://api.example.com
+flutter build apk --release --dart-define=API_BASE_URL=https://club-matias-megias-navarro-api.onrender.com
+```
+
+El APK se genera en:
+
+```text
+mobile/build/app/outputs/flutter-apk/app-release.apk
 ```
 
 La aplicacion conserva `http://10.0.2.2:8000` como valor predeterminado para
@@ -224,7 +229,7 @@ http://127.0.0.1:8000
 La direccion puede modificarse sin cambiar el codigo fuente:
 
 ```powershell
-flutter run --dart-define=API_BASE_URL=https://api.example.com
+flutter run -d emulator-5554 --dart-define=API_BASE_URL=https://club-matias-megias-navarro-api.onrender.com
 ```
 
 La configuracion utiliza:
@@ -444,8 +449,18 @@ flutter test
 Resultado actual esperado:
 
 ```text
-13 pruebas aprobadas
+186 pruebas aprobadas
 ```
+
+Validacion completa:
+
+```powershell
+dart format --output=none --set-exit-if-changed lib test
+flutter analyze
+flutter test
+```
+
+El APK release fue instalado y probado sin ejecutar `flutter run`.
 
 ## Proxima integracion
 
@@ -767,7 +782,7 @@ http://10.0.2.2:8000
 La URL puede reemplazarse mediante:
 
 ```powershell
-flutter run --dart-define=API_BASE_URL=https://api.example.com
+flutter run -d emulator-5554 --dart-define=API_BASE_URL=https://club-matias-megias-navarro-api.onrender.com
 ```
 
 ## Imagenes
@@ -917,6 +932,6 @@ flutter test
 Resultado actual:
 
 ```text
-78 pruebas aprobadas
+186 pruebas aprobadas
 Flutter Analyze sin problemas
 ```
