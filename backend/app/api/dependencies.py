@@ -295,6 +295,32 @@ def get_firebase_profile_service(
     return FirebaseProfileService(UserRepository(database_session))
 
 
+def get_current_firebase_user(
+    database_session: DatabaseSession,
+    identity: Annotated[
+        FirebaseIdentity,
+        Depends(get_firebase_identity),
+    ],
+) -> User:
+    """Obtiene el perfil local asociado a una identidad Firebase validada."""
+    user = UserRepository(database_session).get_by_firebase_uid(identity.uid)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No se pudo validar la identidad.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="La cuenta de usuario se encuentra inactiva.",
+        )
+
+    return user
+
+
 def get_venue_service(
     database_session: DatabaseSession,
 ) -> VenueService:
@@ -450,6 +476,11 @@ FirebaseIdentityDependency = Annotated[
 FirebaseProfileServiceDependency = Annotated[
     FirebaseProfileService,
     Depends(get_firebase_profile_service),
+]
+
+FirebaseCurrentUser = Annotated[
+    User,
+    Depends(get_current_firebase_user),
 ]
 
 # Tipo reutilizable para inyectar VenueService en los endpoints.

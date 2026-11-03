@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.api.dependencies import (
     AuthServiceDependency,
-    CurrentUser,
+    FirebaseCurrentUser,
     FirebaseIdentityDependency,
     FirebaseProfileServiceDependency,
 )
@@ -52,7 +52,7 @@ def complete_firebase_profile(
     status_code=status.HTTP_200_OK,
 )
 def get_my_profile(
-    current_user: CurrentUser,
+    current_user: FirebaseCurrentUser,
 ) -> UserResponse:
     """
     Devuelve el perfil del usuario autenticado.
@@ -70,7 +70,7 @@ def get_my_profile(
 )
 def update_my_profile(
     update_data: UserUpdate,
-    current_user: CurrentUser,
+    current_user: FirebaseCurrentUser,
     service: AuthServiceDependency,
 ) -> UserResponse:
     """

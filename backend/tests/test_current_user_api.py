@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_firebase_user, get_current_user
 from app.core.config import get_settings
 from app.core.security import (
     AccessTokenService,
@@ -251,7 +251,7 @@ def test_get_my_profile_returns_authenticated_user(
     """
     expected_user = create_user()
 
-    app.dependency_overrides[get_current_user] = lambda: expected_user
+    app.dependency_overrides[get_current_firebase_user] = lambda: expected_user
 
     response = client.get(
         "/users/me",

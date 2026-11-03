@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.dependencies import get_auth_service, get_current_user
+from app.api.dependencies import get_auth_service, get_current_firebase_user
 from app.main import app
 from app.models import User
 from app.repositories import UserRepository
@@ -44,7 +44,7 @@ def profile_api() -> tuple[TestClient, User, MagicMock]:
     user = create_user()
     service = MagicMock(spec=AuthService)
 
-    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_current_firebase_user] = lambda: user
     app.dependency_overrides[get_auth_service] = lambda: service
 
     client = TestClient(app)
