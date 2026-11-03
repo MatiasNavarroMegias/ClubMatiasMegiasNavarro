@@ -1,0 +1,3 @@
+# Ejecutar cada cinco minutos en un servidor con curl y HTTPS.
+# Reemplazar la URL y el secreto por los valores del entorno de produccion.
+*/5 * * * * curl --fail --silent --show-error --request POST https://api.example.com/internal/reminders --header "X-Reminder-Secret: REPLACE_WITH_SECRET" >> /var/log/club-reminders.log 2>&1

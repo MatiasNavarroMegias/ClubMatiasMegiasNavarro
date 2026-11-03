@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "618507962270",
+    "project_id": "club-matias-megias-navarro",
+    "storage_bucket": "club-matias-megias-navarro.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:618507962270:android:1f10ad426ee19bf8f7b88f",
+        "android_client_info": {
+          "package_name": "com.matiasmegiasnavarro.club_matias_megias_navarro"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDs1gLUKeQvOHrTnzr9sIyknJ_nns1gDi8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,100 @@
+import 'dart:developer' as developer;
+
+import 'package:flutter/material.dart';
+
+import '../features/reservations/data/services/reservation_api_client.dart';
+import '../features/auth/data/services/auth_api_client.dart';
+import '../features/auth/data/services/session_storage.dart';
+import '../features/auth/presentation/controllers/auth_controller.dart';
+import '../features/auth/presentation/screens/session_gate.dart';
+import '../features/venues/data/services/venue_api_client.dart';
+import 'theme/app_theme.dart';
+import '../features/notifications/data/services/push_installation_store.dart';
+import '../features/notifications/data/services/push_device_api_client.dart';
+
+/// Widget principal de ClubMatiasMegiasNavarro.
+///
+/// Este widget centraliza el tema y construye las dependencias que
+/// administran la autenticacion durante toda la aplicacion.
+class ClubApp extends StatefulWidget {
+  const ClubApp({
+    super.key,
+    this.authController,
+    this.venueApiClient,
+    this.reservationApiClient,
+    this.pushInstallationStore,
+    this.initializationTimeout = const Duration(seconds: 10),
+  });
+
+  /// Controlador opcional utilizado durante las pruebas.
+  ///
+  /// En una ejecucion normal, ClubApp construye un controlador con el
+  /// cliente HTTP real y el almacenamiento seguro del dispositivo.
+  final AuthController? authController;
+
+  /// Cliente opcional utilizado por la pantalla de sedes.
+  final VenueApiClient? venueApiClient;
+
+  /// Cliente opcional utilizado por el flujo de reservas.
+  final ReservationApiClient? reservationApiClient;
+
+  /// Almacenamiento temporal del identificador de Firebase.
+  ///
+  /// En produccion se recibe desde main para compartir la misma
+  /// instancia utilizada por PushNotificationService.
+  final PushInstallationStore? pushInstallationStore;
+
+  /// Tiempo maximo para restaurar la sesion al iniciar.
+  final Duration initializationTimeout;
+
+  @override
+  State<ClubApp> createState() => _ClubAppState();
+}
+
+class _ClubAppState extends State<ClubApp> {
+  late final AuthController _authController;
+  late final bool _ownsAuthController;
+
+  @override
+  void initState() {
+    super.initState();
+    developer.log('ClubApp.initState.', name: 'ClubApp');
+
+    _ownsAuthController = widget.authController == null;
+    _authController =
+        widget.authController ??
+        AuthController(
+          apiClient: AuthApiClient(),
+          sessionStorage: SecureSessionStorage(),
+          pushDeviceApiClient: PushDeviceApiClient(),
+          pushInstallationStore: widget.pushInstallationStore,
+        );
+  }
+
+  @override
+  void dispose() {
+    if (_ownsAuthController) {
+      _authController.dispose();
+    }
+
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    developer.log('ClubApp.build.', name: 'ClubApp');
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Club Matias Megias Navarro',
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.system,
+      home: SessionGate(
+        authController: _authController,
+        venueApiClient: widget.venueApiClient,
+        reservationApiClient: widget.reservationApiClient,
+        initializationTimeout: widget.initializationTimeout,
+      ),
+    );
+  }
+}

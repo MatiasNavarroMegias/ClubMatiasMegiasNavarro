@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 720">
+  <rect width="800" height="720" rx="96" fill="#0B3D2E"/>
+  <path d="M180 420V236l220-140 220 140v184H180Z" fill="#B8D83D"/>
+  <path d="M252 404V260h296v144" fill="#0B3D2E"/>
+  <path d="M368 404V320h64v84" fill="#B8D83D"/>
+  <circle cx="570" cy="170" r="82" fill="#FFFFFF"/>
+  <path d="m570 128 22 30 36-10-22 31 22 31-36-10-22 30-22-30-36 10 22-31-22-31 36 10 22-30Z" fill="#0B3D2E"/>
+  <path d="M538 128 570 170 602 128M538 212l32-42 32 42M486 170h84m84 0h-84" fill="none" stroke="#0B3D2E" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="400" y="552" text-anchor="middle" fill="#FFFFFF" font-family="sans-serif" font-size="54" font-weight="700" letter-spacing="2">CLUB MATIAS</text>
+  <text x="400" y="616" text-anchor="middle" fill="#B8D83D" font-family="sans-serif" font-size="36" font-weight="600" letter-spacing="5">MEGIAS NAVARRO</text>
+</svg>
