@@ -37,11 +37,11 @@ def test_verifier_returns_typed_identity_from_validated_claims() -> None:
 @pytest.mark.parametrize(
     ("firebase_error", "expected_code"),
     [
-        (auth.ExpiredIdTokenError("expired"), "expired"),
+        (auth.ExpiredIdTokenError("expired", ValueError("cause")), "expired"),
         (auth.RevokedIdTokenError("revoked"), "revoked"),
         (auth.UserDisabledError("disabled"), "disabled"),
         (auth.InvalidIdTokenError("invalid"), "invalid"),
-        (auth.CertificateFetchError("certificate"), "certificate"),
+        (auth.CertificateFetchError("certificate", ValueError("cause")), "certificate"),
     ],
 )
 def test_verifier_translates_firebase_errors(

@@ -13,6 +13,12 @@ from app.services.availability import (
     AvailabilitySportsSpaceNotFoundError,
     AvailabilityVenueInactiveError,
 )
+from app.services.firebase_identity import (
+    FirebaseAdminIdentityVerifier,
+    FirebaseIdentity,
+    FirebaseIdentityVerificationError,
+    FirebaseIdentityVerifier,
+)
 from app.services.firebase_push_sender import FirebasePushSender
 from app.services.password_recovery import (
     InvalidPasswordRecoveryCodeError,
@@ -70,6 +76,10 @@ __all__ = [
     "PasswordRecoveryService",
     "PushDeviceService",
     "FirebasePushSender",
+    "FirebaseAdminIdentityVerifier",
+    "FirebaseIdentity",
+    "FirebaseIdentityVerificationError",
+    "FirebaseIdentityVerifier",
     "ReservationNotificationService",
     "ReservationReminderService",
     "RecoveryCodeNotifier",
