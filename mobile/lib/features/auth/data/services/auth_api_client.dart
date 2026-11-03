@@ -87,6 +87,36 @@ class AuthApiClient {
     );
   }
 
+  /// Completa el perfil local despues de crear la cuenta en Firebase.
+  Future<AuthenticatedUser> completeFirebaseProfile({
+    required String accessToken,
+    required RegistrationData registrationData,
+  }) async {
+    final uri = Uri.parse('$baseUrl/users/profile');
+
+    final response = await _sendRequest(
+      () => _httpClient.post(
+        uri,
+        headers: _authenticatedHeaders(accessToken),
+        body: jsonEncode({
+          'first_name': registrationData.firstName.trim(),
+          'last_name': registrationData.lastName.trim(),
+          'birth_date': registrationData.birthDate
+              .toIso8601String()
+              .split('T')
+              .first,
+        }),
+      ),
+    );
+
+    return AuthenticatedUser.fromJson(
+      _decodeJsonObject(
+        response,
+        invalidMessage: 'La API devolvio un perfil invalido.',
+      ),
+    );
+  }
+
   /// Inicia sesion mediante POST /auth/login.
   Future<AuthSession> login({
     required String email,

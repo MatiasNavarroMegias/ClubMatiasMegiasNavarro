@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../features/reservations/data/services/reservation_api_client.dart';
 import '../features/auth/data/services/auth_api_client.dart';
+import '../features/auth/data/services/firebase_authentication_client.dart';
 import '../features/auth/data/services/session_storage.dart';
 import '../features/auth/presentation/controllers/auth_controller.dart';
 import '../features/auth/presentation/screens/session_gate.dart';
@@ -66,6 +67,7 @@ class _ClubAppState extends State<ClubApp> {
         AuthController(
           apiClient: AuthApiClient(),
           sessionStorage: SecureSessionStorage(),
+          firebaseAuthenticationClient: FirebaseAuthClient(),
           pushDeviceApiClient: PushDeviceApiClient(),
           pushInstallationStore: widget.pushInstallationStore,
         );
