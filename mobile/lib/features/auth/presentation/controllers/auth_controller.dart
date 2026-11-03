@@ -177,7 +177,7 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  /// Inicia sesion y almacena el JWT de forma segura.
+  /// Inicia sesion y conserva el token solo en memoria.
   ///
   /// Devuelve true cuando el login y la consulta del perfil fueron
   /// exitosos. Devuelve false y conserva el mensaje visible cuando
