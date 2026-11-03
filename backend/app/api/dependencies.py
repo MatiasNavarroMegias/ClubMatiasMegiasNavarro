@@ -28,6 +28,10 @@ from app.services import (
     AvailabilityService,
     BrevoRecoveryCodeNotifier,
     DevelopmentRecoveryCodeNotifier,
+    FirebaseAdminIdentityVerifier,
+    FirebaseIdentity,
+    FirebaseIdentityVerificationError,
+    FirebaseProfileService,
     FirebasePushSender,
     PasswordRecoveryService,
     PushDeviceService,
@@ -47,6 +51,7 @@ DatabaseSession = Annotated[Session, Depends(get_db_session)]
 # Swagger muestra un unico campo para ingresar el JWT obtenido mediante
 # POST /auth/login, que utiliza un cuerpo JSON.
 bearer_scheme = HTTPBearer()
+firebase_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_access_token_service() -> AccessTokenService:
@@ -260,6 +265,36 @@ def get_current_user(
     return user
 
 
+def get_firebase_identity(
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(firebase_bearer_scheme),
+    ],
+) -> FirebaseIdentity:
+    """Valida exclusivamente un Firebase ID Token recibido como Bearer."""
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No se pudo validar la identidad.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        return FirebaseAdminIdentityVerifier().verify(credentials.credentials)
+    except FirebaseIdentityVerificationError as error:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No se pudo validar la identidad.",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from error
+
+
+def get_firebase_profile_service(
+    database_session: DatabaseSession,
+) -> FirebaseProfileService:
+    return FirebaseProfileService(UserRepository(database_session))
+
+
 def get_venue_service(
     database_session: DatabaseSession,
 ) -> VenueService:
@@ -405,6 +440,16 @@ AuthServiceDependency = Annotated[
 CurrentUser = Annotated[
     User,
     Depends(get_current_user),
+]
+
+FirebaseIdentityDependency = Annotated[
+    FirebaseIdentity,
+    Depends(get_firebase_identity),
+]
+
+FirebaseProfileServiceDependency = Annotated[
+    FirebaseProfileService,
+    Depends(get_firebase_profile_service),
 ]
 
 # Tipo reutilizable para inyectar VenueService en los endpoints.

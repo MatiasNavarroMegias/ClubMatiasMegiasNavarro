@@ -1,13 +1,49 @@
 from fastapi import APIRouter, HTTPException, status
 
-from app.api.dependencies import AuthServiceDependency, CurrentUser
-from app.schemas import UserResponse, UserUpdate
+from app.api.dependencies import (
+    AuthServiceDependency,
+    CurrentUser,
+    FirebaseIdentityDependency,
+    FirebaseProfileServiceDependency,
+)
+from app.schemas import FirebaseProfileCreate, UserResponse, UserUpdate
+from app.services import FirebaseProfileConflictError, InactiveUserError
 
 # Agrupa los endpoints personales del usuario autenticado.
 router = APIRouter(
     prefix="/users",
     tags=["Users"],
 )
+
+
+@router.post(
+    "/profile",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def complete_firebase_profile(
+    profile_data: FirebaseProfileCreate,
+    identity: FirebaseIdentityDependency,
+    service: FirebaseProfileServiceDependency,
+) -> UserResponse:
+    """Crea o devuelve idempotentemente el perfil de una cuenta Firebase."""
+    try:
+        user = service.complete_profile(
+            identity=identity,
+            profile_data=profile_data,
+        )
+    except FirebaseProfileConflictError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    except InactiveUserError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(error),
+        ) from error
+
+    return UserResponse.model_validate(user)
 
 
 @router.get(

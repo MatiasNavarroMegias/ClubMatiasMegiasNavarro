@@ -214,6 +214,31 @@ class UserUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class FirebaseProfileCreate(BaseModel):
+    """Datos de perfil enviados despues de crear una cuenta Firebase."""
+
+    first_name: str = Field(min_length=1, max_length=50)
+    last_name: str = Field(min_length=1, max_length=50)
+    birth_date: date
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def normalize_person_name(cls, value: str) -> str:
+        normalized_value = value.strip()
+        if not normalized_value:
+            raise ValueError("El nombre y el apellido no pueden contener solo espacios.")
+        return normalized_value
+
+    @field_validator("birth_date")
+    @classmethod
+    def validate_birth_date(cls, value: date) -> date:
+        if value >= date.today():
+            raise ValueError("La fecha de nacimiento debe ser anterior al dia actual.")
+        return value
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class TokenResponse(BaseModel):
     """
     Representa el token entregado despues de un login exitoso.

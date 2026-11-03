@@ -51,6 +51,12 @@ class UserRepository:
         """
         return self.database_session.get(User, user_id)
 
+    def get_by_firebase_uid(self, firebase_uid: str) -> User | None:
+        """Busca un perfil local mediante un UID validado por Firebase."""
+        statement = select(User).where(User.firebase_uid == firebase_uid)
+
+        return self.database_session.scalar(statement)
+
     def add(self, user: User) -> User:
         """
         Persiste un usuario y recupera los valores generados.

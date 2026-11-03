@@ -62,9 +62,17 @@ class User(Base):
     # Resultado del algoritmo de hashing aplicado a la contrasena.
     #
     # La contrasena original nunca debe guardarse en PostgreSQL.
-    password_hash: Mapped[str] = mapped_column(
+    password_hash: Mapped[str | None] = mapped_column(
         String(255),
-        nullable=False,
+        nullable=True,
+    )
+
+    # UID emitido por Firebase Authentication durante la transicion.
+    firebase_uid: Mapped[str | None] = mapped_column(
+        String(128),
+        nullable=True,
+        unique=True,
+        index=True,
     )
 
     # Permite desactivar una cuenta sin eliminar su perfil ni reservas.

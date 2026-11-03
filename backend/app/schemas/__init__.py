@@ -20,6 +20,7 @@ from app.schemas.sports_space import (
     SportsSpaceUpdate,
 )
 from app.schemas.user import (
+    FirebaseProfileCreate,
     TokenResponse,
     UserLogin,
     UserRegister,
@@ -34,6 +35,7 @@ from app.schemas.venue import (
 
 __all__ = [
     "AvailabilitySlotResponse",
+    "FirebaseProfileCreate",
     "PasswordRecoveryConfirm",
     "PasswordRecoveryMessage",
     "PasswordRecoveryRequest",

@@ -3,6 +3,8 @@
 from app.services.auth import (
     AuthService,
     EmailAlreadyRegisteredError,
+    FirebaseProfileConflictError,
+    FirebaseProfileService,
     InactiveUserError,
     InvalidCredentialsError,
 )
@@ -76,6 +78,8 @@ __all__ = [
     "PasswordRecoveryService",
     "PushDeviceService",
     "FirebasePushSender",
+    "FirebaseProfileConflictError",
+    "FirebaseProfileService",
     "FirebaseAdminIdentityVerifier",
     "FirebaseIdentity",
     "FirebaseIdentityVerificationError",
