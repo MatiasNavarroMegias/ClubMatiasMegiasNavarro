@@ -1,32 +1,29 @@
-import 'dart:convert';
-
-import 'package:club_matias_megias_navarro/features/auth/data/services/auth_api_client.dart';
+import 'package:club_matias_megias_navarro/features/auth/data/services/firebase_authentication_client.dart';
 import 'package:club_matias_megias_navarro/features/auth/presentation/screens/password_recovery_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 
 void main() {
-  const baseUrl = 'http://example.test';
-
-  Widget createTestApp({required AuthApiClient apiClient}) {
-    return MaterialApp(home: PasswordRecoveryScreen(apiClient: apiClient));
+  Widget createTestApp(FakeFirebaseAuthenticationClient client) {
+    return MaterialApp(
+      home: PasswordRecoveryScreen(firebaseAuthenticationClient: client),
+    );
   }
 
-  testWidgets('muestra inicialmente el formulario de correo', (tester) async {
-    final apiClient = AuthApiClient(
-      httpClient: MockClient((request) async {
-        throw StateError('No debe realizar solicitudes HTTP.');
-      }),
-      baseUrl: baseUrl,
+  Future<void> enterValidEmail(WidgetTester tester) async {
+    await tester.enterText(
+      find.byKey(const Key('password-recovery-email-field')),
+      ' MATIAS@EXAMPLE.COM ',
     );
+    await tester.tap(find.byKey(const Key('password-recovery-request-submit')));
+    await tester.pump();
+  }
 
-    addTearDown(apiClient.close);
+  testWidgets('muestra inicialmente solo el formulario de correo', (
+    tester,
+  ) async {
+    await tester.pumpWidget(createTestApp(FakeFirebaseAuthenticationClient()));
 
-    await tester.pumpWidget(createTestApp(apiClient: apiClient));
-
-    expect(find.byKey(const Key('password-recovery-screen')), findsOneWidget);
     expect(
       find.byKey(const Key('password-recovery-email-field')),
       findsOneWidget,
@@ -36,367 +33,124 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const Key('password-recovery-code-field')), findsNothing);
-    expect(find.text('Recuperar contrasena'), findsWidgets);
+    expect(
+      find.byKey(const Key('password-recovery-new-password-field')),
+      findsNothing,
+    );
+    expect(find.text('Enviar enlace'), findsOneWidget);
   });
 
-  testWidgets('valida el correo antes de consultar la API', (tester) async {
-    var requestCount = 0;
+  testWidgets('envia el enlace y muestra mensaje generico', (tester) async {
+    final client = FakeFirebaseAuthenticationClient();
+    await tester.pumpWidget(createTestApp(client));
 
-    final apiClient = AuthApiClient(
-      httpClient: MockClient((request) async {
-        requestCount++;
+    await enterValidEmail(tester);
 
-        return http.Response(
-          jsonEncode({'message': 'Mensaje inesperado.'}),
-          200,
-        );
-      }),
-      baseUrl: baseUrl,
+    expect(client.resetEmails, ['matias@example.com']);
+    expect(find.text(firebasePasswordResetMessage), findsOneWidget);
+  });
+
+  testWidgets('correo inexistente mantiene el mensaje generico', (
+    tester,
+  ) async {
+    final client = FakeFirebaseAuthenticationClient(
+      error: const FirebaseAuthenticationException(
+        code: 'user-not-found',
+        message: 'internal user detail',
+      ),
     );
+    await tester.pumpWidget(createTestApp(client));
 
-    addTearDown(apiClient.close);
+    await enterValidEmail(tester);
 
-    await tester.pumpWidget(createTestApp(apiClient: apiClient));
+    expect(find.text(firebasePasswordResetMessage), findsOneWidget);
+    expect(find.text('internal user detail'), findsNothing);
+  });
+
+  testWidgets('mapea errores Firebase sin mostrar detalles internos', (
+    tester,
+  ) async {
+    final cases = {
+      'invalid-email': 'Ingresa un correo electronico valido.',
+      'too-many-requests': 'Demasiados intentos. Intenta nuevamente mas tarde.',
+      'network-request-failed':
+          'No se pudo conectar. Verifica tu conexion e intenta nuevamente.',
+      'operation-not-allowed':
+          'La recuperacion no esta disponible en este momento.',
+      'unexpected':
+          'No se pudo enviar el correo. Intenta nuevamente mas tarde.',
+    };
+
+    for (final entry in cases.entries) {
+      final client = FakeFirebaseAuthenticationClient(
+        error: FirebaseAuthenticationException(
+          code: entry.key,
+          message: 'secret Firebase detail',
+        ),
+      );
+      await tester.pumpWidget(createTestApp(client));
+
+      await enterValidEmail(tester);
+
+      expect(find.text(entry.value), findsOneWidget);
+      expect(find.text('secret Firebase detail'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+    }
+  });
+
+  testWidgets('valida el correo sin llamar Firebase', (tester) async {
+    final client = FakeFirebaseAuthenticationClient();
+    await tester.pumpWidget(createTestApp(client));
 
     await tester.tap(find.byKey(const Key('password-recovery-request-submit')));
     await tester.pump();
 
     expect(find.text('Ingresa tu correo electronico.'), findsOneWidget);
-    expect(requestCount, 0);
-
-    await tester.enterText(
-      find.byKey(const Key('password-recovery-email-field')),
-      'correo-invalido',
-    );
-
-    await tester.tap(find.byKey(const Key('password-recovery-request-submit')));
-    await tester.pump();
-
-    expect(find.text('Ingresa un correo electronico valido.'), findsOneWidget);
-    expect(requestCount, 0);
+    expect(client.resetEmails, isEmpty);
   });
+}
 
-  testWidgets('solicita el codigo y avanza a la confirmacion', (tester) async {
-    var requestCount = 0;
+class FakeFirebaseAuthenticationClient implements FirebaseAuthenticationClient {
+  FakeFirebaseAuthenticationClient({this.error});
 
-    final apiClient = AuthApiClient(
-      httpClient: MockClient((request) async {
-        requestCount++;
+  final FirebaseAuthenticationException? error;
+  final resetEmails = <String>[];
 
-        expect(request.method, 'POST');
-        expect(request.url.path, '/auth/password-recovery/request');
+  @override
+  FirebaseAuthenticatedUser? get currentUser => null;
 
-        final body = jsonDecode(request.body) as Map<String, dynamic>;
+  @override
+  Stream<FirebaseAuthenticatedUser?> get idTokenChanges => const Stream.empty();
 
-        expect(body, {'email': 'matias@example.com'});
+  @override
+  Future<FirebaseAuthenticatedUser> createUser({
+    required String email,
+    required String password,
+  }) {
+    throw UnimplementedError();
+  }
 
-        return http.Response(
-          jsonEncode({
-            'message':
-                'Si el correo pertenece a una cuenta, '
-                'recibiras instrucciones para recuperar '
-                'la contrasena.',
-          }),
-          200,
-        );
-      }),
-      baseUrl: baseUrl,
-    );
+  @override
+  Future<String> getIdToken({bool forceRefresh = false}) {
+    throw UnimplementedError();
+  }
 
-    addTearDown(apiClient.close);
+  @override
+  Future<FirebaseAuthenticatedUser> signIn({
+    required String email,
+    required String password,
+  }) {
+    throw UnimplementedError();
+  }
 
-    await tester.pumpWidget(createTestApp(apiClient: apiClient));
+  @override
+  Future<void> signOut() async {}
 
-    await tester.enterText(
-      find.byKey(const Key('password-recovery-email-field')),
-      ' MATIAS@EXAMPLE.COM ',
-    );
-
-    await tester.tap(find.byKey(const Key('password-recovery-request-submit')));
-    await tester.pumpAndSettle();
-
-    expect(requestCount, 1);
-    expect(
-      find.byKey(const Key('password-recovery-code-field')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const Key('password-recovery-new-password-field')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const Key('password-recovery-confirmation-field')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const Key('password-recovery-confirm-submit')),
-      findsOneWidget,
-    );
-    expect(
-      find.text(
-        'Si el correo pertenece a una cuenta, '
-        'recibiras instrucciones para recuperar '
-        'la contrasena.',
-      ),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('permite cambiar el correo despues de solicitar el codigo', (
-    tester,
-  ) async {
-    final apiClient = AuthApiClient(
-      httpClient: MockClient((request) async {
-        return http.Response(
-          jsonEncode({
-            'message':
-                'Si el correo pertenece a una cuenta, '
-                'recibiras instrucciones para recuperar '
-                'la contrasena.',
-          }),
-          200,
-        );
-      }),
-      baseUrl: baseUrl,
-    );
-
-    addTearDown(apiClient.close);
-
-    await tester.pumpWidget(createTestApp(apiClient: apiClient));
-
-    await tester.enterText(
-      find.byKey(const Key('password-recovery-email-field')),
-      'matias@example.com',
-    );
-
-    await tester.tap(find.byKey(const Key('password-recovery-request-submit')));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const Key('password-recovery-code-field')),
-      '48392175',
-    );
-
-    await tester.enterText(
-      find.byKey(const Key('password-recovery-new-password-field')),
-      'NuevaClave123',
-    );
-
-    final changeEmailButton = find.byKey(
-      const Key('password-recovery-change-email'),
-    );
-
-    tester.testTextInput.hide();
-    await tester.pumpAndSettle();
-
-    await tester.ensureVisible(changeEmailButton);
-    await tester.pumpAndSettle();
-
-    await tester.tap(changeEmailButton);
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const Key('password-recovery-email-field')),
-      findsOneWidget,
-    );
-    expect(find.byKey(const Key('password-recovery-code-field')), findsNothing);
-
-    final emailField = tester.widget<TextFormField>(
-      find.byKey(const Key('password-recovery-email-field')),
-    );
-
-    expect(emailField.controller?.text, 'matias@example.com');
-  });
-
-  testWidgets('valida codigo y contrasenas antes de confirmar', (tester) async {
-    var confirmationRequestCount = 0;
-
-    final apiClient = AuthApiClient(
-      httpClient: MockClient((request) async {
-        if (request.url.path.endsWith('/request')) {
-          return http.Response(
-            jsonEncode({
-              'message':
-                  'Si el correo pertenece a una cuenta, '
-                  'recibiras instrucciones para recuperar '
-                  'la contrasena.',
-            }),
-            200,
-          );
-        }
-
-        confirmationRequestCount++;
-
-        return http.Response(
-          jsonEncode({
-            'message': 'La contrasena fue actualizada correctamente.',
-          }),
-          200,
-        );
-      }),
-      baseUrl: baseUrl,
-    );
-
-    addTearDown(apiClient.close);
-
-    await tester.pumpWidget(createTestApp(apiClient: apiClient));
-
-    await tester.enterText(
-      find.byKey(const Key('password-recovery-email-field')),
-      'matias@example.com',
-    );
-
-    await tester.tap(find.byKey(const Key('password-recovery-request-submit')));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const Key('password-recovery-code-field')),
-      '123',
-    );
-
-    await tester.enterText(
-      find.byKey(const Key('password-recovery-new-password-field')),
-      'nuevaclave123',
-    );
-
-    await tester.enterText(
-      find.byKey(const Key('password-recovery-confirmation-field')),
-      'otraClave456',
-    );
-
-    final confirmButton = find.byKey(
-      const Key('password-recovery-confirm-submit'),
-    );
-
-    tester.testTextInput.hide();
-    await tester.pumpAndSettle();
-
-    await tester.ensureVisible(confirmButton);
-    await tester.pumpAndSettle();
-
-    await tester.tap(confirmButton);
-    await tester.pump();
-
-    expect(find.text('Ingresa el codigo de ocho digitos.'), findsOneWidget);
-    expect(
-      find.text('La contrasena debe incluir una letra mayuscula.'),
-      findsOneWidget,
-    );
-    expect(find.text('Las contrasenas no coinciden.'), findsOneWidget);
-    expect(confirmationRequestCount, 0);
-  });
-
-  testWidgets('confirma la recuperacion y vuelve a la pantalla anterior', (
-    tester,
-  ) async {
-    var confirmationRequestCount = 0;
-
-    final apiClient = AuthApiClient(
-      httpClient: MockClient((request) async {
-        if (request.url.path.endsWith('/request')) {
-          return http.Response(
-            jsonEncode({
-              'message':
-                  'Si el correo pertenece a una cuenta, '
-                  'recibiras instrucciones para recuperar '
-                  'la contrasena.',
-            }),
-            200,
-          );
-        }
-
-        confirmationRequestCount++;
-
-        expect(request.url.path, '/auth/password-recovery/confirm');
-
-        final body = jsonDecode(request.body) as Map<String, dynamic>;
-
-        expect(body, {
-          'email': 'matias@example.com',
-          'code': '48392175',
-          'new_password': 'NuevaClave123',
-          'new_password_confirmation': 'NuevaClave123',
-        });
-
-        return http.Response(
-          jsonEncode({
-            'message': 'La contrasena fue actualizada correctamente.',
-          }),
-          200,
-        );
-      }),
-      baseUrl: baseUrl,
-    );
-
-    addTearDown(apiClient.close);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (context) {
-            return Scaffold(
-              body: Center(
-                child: FilledButton(
-                  key: const Key('open-password-recovery'),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (context) {
-                          return PasswordRecoveryScreen(apiClient: apiClient);
-                        },
-                      ),
-                    );
-                  },
-                  child: const Text('Abrir recuperacion'),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-
-    await tester.tap(find.byKey(const Key('open-password-recovery')));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const Key('password-recovery-email-field')),
-      'matias@example.com',
-    );
-
-    await tester.tap(find.byKey(const Key('password-recovery-request-submit')));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const Key('password-recovery-code-field')),
-      '48392175',
-    );
-
-    await tester.enterText(
-      find.byKey(const Key('password-recovery-new-password-field')),
-      'NuevaClave123',
-    );
-
-    await tester.enterText(
-      find.byKey(const Key('password-recovery-confirmation-field')),
-      'NuevaClave123',
-    );
-
-    final confirmButton = find.byKey(
-      const Key('password-recovery-confirm-submit'),
-    );
-
-    tester.testTextInput.hide();
-    await tester.pumpAndSettle();
-
-    await tester.ensureVisible(confirmButton);
-    await tester.pumpAndSettle();
-
-    await tester.tap(confirmButton);
-    await tester.pumpAndSettle();
-
-    expect(confirmationRequestCount, 1);
-    expect(find.byKey(const Key('password-recovery-screen')), findsNothing);
-    expect(find.byKey(const Key('open-password-recovery')), findsOneWidget);
-  });
+  @override
+  Future<void> sendPasswordResetEmail({required String email}) async {
+    if (error != null) {
+      throw error!;
+    }
+    resetEmails.add(email.trim().toLowerCase());
+  }
 }
