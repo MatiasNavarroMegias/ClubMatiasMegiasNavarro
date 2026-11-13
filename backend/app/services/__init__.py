@@ -15,6 +15,11 @@ from app.services.availability import (
     AvailabilitySportsSpaceNotFoundError,
     AvailabilityVenueInactiveError,
 )
+from app.services.firebase_admin_app import (
+    FirebaseAdminAppProvider,
+    FirebaseAdminConfigurationError,
+    get_firebase_admin_app_provider,
+)
 from app.services.firebase_identity import (
     FirebaseAdminIdentityVerifier,
     FirebaseIdentity,
@@ -84,6 +89,9 @@ __all__ = [
     "FirebaseIdentity",
     "FirebaseIdentityVerificationError",
     "FirebaseIdentityVerifier",
+    "FirebaseAdminAppProvider",
+    "FirebaseAdminConfigurationError",
+    "get_firebase_admin_app_provider",
     "ReservationNotificationService",
     "ReservationReminderService",
     "RecoveryCodeNotifier",

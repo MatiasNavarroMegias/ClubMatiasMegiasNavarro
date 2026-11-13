@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 from zoneinfo import ZoneInfo
 
@@ -28,6 +29,7 @@ from app.services import (
     AvailabilityService,
     BrevoRecoveryCodeNotifier,
     DevelopmentRecoveryCodeNotifier,
+    FirebaseAdminConfigurationError,
     FirebaseAdminIdentityVerifier,
     FirebaseIdentity,
     FirebaseIdentityVerificationError,
@@ -41,7 +43,10 @@ from app.services import (
     SMTPRecoveryCodeNotifier,
     SportsSpaceService,
     VenueService,
+    get_firebase_admin_app_provider,
 )
+
+logger = logging.getLogger(__name__)
 
 # Tipo reutilizable que representa una sesion administrada por FastAPI.
 DatabaseSession = Annotated[Session, Depends(get_db_session)]
@@ -280,7 +285,18 @@ def get_firebase_identity(
         )
 
     try:
-        return FirebaseAdminIdentityVerifier().verify(credentials.credentials)
+        settings = get_settings()
+        provider = get_firebase_admin_app_provider(
+            settings.firebase_credentials_path,
+            settings.firebase_project_id,
+        )
+        return FirebaseAdminIdentityVerifier(app_provider=provider).verify(credentials.credentials)
+    except FirebaseAdminConfigurationError as error:
+        logger.error("Firebase Admin no esta configurado para identidad.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="El servicio de autenticacion no esta disponible.",
+        ) from error
     except FirebaseIdentityVerificationError as error:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -439,6 +455,10 @@ def get_reservation_notification_service(
         sender=FirebasePushSender(
             credentials_path=settings.firebase_credentials_path,
             project_id=settings.firebase_project_id,
+            app_provider=get_firebase_admin_app_provider(
+                settings.firebase_credentials_path,
+                settings.firebase_project_id,
+            ),
         ),
         timezone=ZoneInfo(settings.app_timezone),
     )

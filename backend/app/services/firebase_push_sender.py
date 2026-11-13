@@ -1,7 +1,7 @@
-from pathlib import Path
-
 import firebase_admin
-from firebase_admin import credentials, messaging
+from firebase_admin import messaging
+
+from app.services.firebase_admin_app import FirebaseAdminAppProvider
 
 
 class FirebasePushSender:
@@ -12,11 +12,12 @@ class FirebasePushSender:
         *,
         credentials_path: str | None,
         project_id: str | None = None,
-        app_name: str = "club_matias_megias_navarro",
+        app_provider: FirebaseAdminAppProvider | None = None,
     ) -> None:
-        self.credentials_path = credentials_path
-        self.project_id = project_id
-        self.app_name = app_name
+        self.app_provider = app_provider or FirebaseAdminAppProvider(
+            credentials_path=credentials_path,
+            project_id=project_id,
+        )
 
     def send(
         self,
@@ -34,22 +35,4 @@ class FirebasePushSender:
         messaging.send(message, app=app)
 
     def _get_app(self) -> firebase_admin.App:
-        try:
-            return firebase_admin.get_app(self.app_name)
-        except ValueError as error:
-            if not self.credentials_path:
-                raise RuntimeError("FIREBASE_CREDENTIALS_PATH no esta configurada.") from error
-
-            credentials_file = Path(self.credentials_path)
-            if not credentials_file.is_file():
-                raise RuntimeError(
-                    "No se encontro el archivo de credenciales de Firebase."
-                ) from error
-
-            certificate = credentials.Certificate(str(credentials_file))
-            options = {"projectId": self.project_id} if self.project_id else None
-            return firebase_admin.initialize_app(
-                certificate,
-                options=options,
-                name=self.app_name,
-            )
+        return self.app_provider.get_app()

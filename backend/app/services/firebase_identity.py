@@ -4,6 +4,8 @@ from typing import Protocol
 
 from firebase_admin import auth
 
+from app.services.firebase_admin_app import FirebaseAdminAppProvider
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,7 +36,13 @@ class FirebaseIdentityVerifier(Protocol):
 class FirebaseAdminIdentityVerifier:
     """Valida Firebase ID Tokens mediante Firebase Admin SDK."""
 
-    def __init__(self, *, check_revoked: bool = True) -> None:
+    def __init__(
+        self,
+        *,
+        app_provider: FirebaseAdminAppProvider,
+        check_revoked: bool = True,
+    ) -> None:
+        self.app_provider = app_provider
         self.check_revoked = check_revoked
 
     def verify(self, id_token: str) -> FirebaseIdentity:
@@ -42,8 +50,10 @@ class FirebaseAdminIdentityVerifier:
             raise FirebaseIdentityVerificationError("invalid")
 
         try:
+            firebase_app = self.app_provider.get_app()
             claims = auth.verify_id_token(
                 id_token,
+                app=firebase_app,
                 check_revoked=self.check_revoked,
             )
         except auth.ExpiredIdTokenError as error:
