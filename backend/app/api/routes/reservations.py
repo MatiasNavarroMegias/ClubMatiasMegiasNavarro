@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.dependencies import (
-    CurrentUser,
+    FirebaseCurrentUser,
     ReservationServiceDependency,
 )
 from app.schemas import ReservationCreate, ReservationResponse
@@ -33,7 +33,7 @@ router = APIRouter(
 )
 def create_reservation(
     reservation_data: ReservationCreate,
-    current_user: CurrentUser,
+    current_user: FirebaseCurrentUser,
     service: ReservationServiceDependency,
 ) -> ReservationResponse:
     """
@@ -93,7 +93,7 @@ def create_reservation(
     status_code=status.HTTP_200_OK,
 )
 def list_upcoming_reservations(
-    current_user: CurrentUser,
+    current_user: FirebaseCurrentUser,
     service: ReservationServiceDependency,
 ) -> list[ReservationResponse]:
     """
@@ -115,7 +115,7 @@ def list_upcoming_reservations(
     status_code=status.HTTP_200_OK,
 )
 def list_reservation_history(
-    current_user: CurrentUser,
+    current_user: FirebaseCurrentUser,
     service: ReservationServiceDependency,
 ) -> list[ReservationResponse]:
     """
@@ -138,7 +138,7 @@ def list_reservation_history(
 )
 def cancel_reservation(
     reservation_id: int,
-    current_user: CurrentUser,
+    current_user: FirebaseCurrentUser,
     service: ReservationServiceDependency,
 ) -> ReservationResponse:
     """

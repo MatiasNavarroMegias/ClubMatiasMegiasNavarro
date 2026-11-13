@@ -24,15 +24,38 @@ Future<void> main() async {
   developer.log('Inicio de main.', name: 'AppBootstrap');
 
   final pushInstallationStore = PushInstallationStore();
+  var firebaseInitialized = false;
+  try {
+    // Firebase Core debe estar listo para que AuthController pueda restaurar
+    // una sesion, pero nunca puede dejar la interfaz esperando sin limite.
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(const Duration(seconds: 5));
+    firebaseInitialized = true;
+    developer.log('Firebase Core inicializado.', name: 'AppBootstrap');
+  } on Object catch (error, stackTrace) {
+    developer.log(
+      'Firebase Core no pudo inicializarse antes de la interfaz.',
+      name: 'AppBootstrap',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
 
   runApp(ClubApp(pushInstallationStore: pushInstallationStore));
   developer.log('ClubApp fue enviado a runApp.', name: 'AppBootstrap');
 
   unawaited(
     initializeFirebaseAndPush(
-      initializeFirebase: () => Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      ),
+      initializeFirebase: () async {
+        if (firebaseInitialized) {
+          return;
+        }
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        firebaseInitialized = true;
+      },
       registerBackgroundHandler: () {
         FirebaseMessaging.onBackgroundMessage(
           firebaseMessagingBackgroundHandler,

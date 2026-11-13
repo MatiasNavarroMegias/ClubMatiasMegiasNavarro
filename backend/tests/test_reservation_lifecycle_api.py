@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import (
-    get_current_user,
+    get_current_firebase_user,
     get_reservation_service,
 )
 from app.main import app
@@ -116,7 +116,7 @@ def reservation_lifecycle_api() -> tuple[
     current_user = create_user()
 
     app.dependency_overrides[get_reservation_service] = lambda: service
-    app.dependency_overrides[get_current_user] = lambda: current_user
+    app.dependency_overrides[get_current_firebase_user] = lambda: current_user
 
     client = TestClient(app)
 

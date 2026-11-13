@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status
 
 from app.api.dependencies import (
-    CurrentUser,
+    FirebaseCurrentUser,
     PushDeviceServiceDependency,
 )
 from app.schemas import (
@@ -23,7 +23,7 @@ router = APIRouter(
 )
 def register_push_device(
     registration_data: PushDeviceRegister,
-    current_user: CurrentUser,
+    current_user: FirebaseCurrentUser,
     service: PushDeviceServiceDependency,
 ) -> PushDeviceResponse:
     """

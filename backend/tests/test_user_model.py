@@ -31,6 +31,7 @@ def test_user_model_contains_expected_columns() -> None:
         "birth_date",
         "email",
         "password_hash",
+        "firebase_uid",
         "is_active",
         "created_at",
         "updated_at",
@@ -53,7 +54,6 @@ def test_user_required_columns_do_not_allow_null_values() -> None:
         User.__table__.columns.last_name,
         User.__table__.columns.birth_date,
         User.__table__.columns.email,
-        User.__table__.columns.password_hash,
         User.__table__.columns.is_active,
         User.__table__.columns.created_at,
         User.__table__.columns.updated_at,
@@ -104,6 +104,14 @@ def test_user_email_is_unique_and_indexed() -> None:
 
     assert email_column.unique is True
     assert email_column.index is True
+
+
+def test_user_firebase_uid_is_nullable_unique_and_indexed() -> None:
+    firebase_uid_column = User.__table__.columns.firebase_uid
+
+    assert firebase_uid_column.nullable is True
+    assert firebase_uid_column.unique is True
+    assert firebase_uid_column.index is True
 
 
 def test_user_model_does_not_store_plain_password() -> None:

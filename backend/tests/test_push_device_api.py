@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import (
-    get_current_user,
+    get_current_firebase_user,
     get_push_device_service,
 )
 from app.main import app
@@ -72,7 +72,7 @@ def push_device_api() -> tuple[
     user = create_user()
     service = MagicMock(spec=PushDeviceService)
 
-    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_current_firebase_user] = lambda: user
     app.dependency_overrides[get_push_device_service] = lambda: service
 
     client = TestClient(app)

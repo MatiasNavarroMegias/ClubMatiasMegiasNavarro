@@ -3,6 +3,8 @@
 from app.services.auth import (
     AuthService,
     EmailAlreadyRegisteredError,
+    FirebaseProfileConflictError,
+    FirebaseProfileService,
     InactiveUserError,
     InvalidCredentialsError,
 )
@@ -12,6 +14,17 @@ from app.services.availability import (
     AvailabilitySportsSpaceInactiveError,
     AvailabilitySportsSpaceNotFoundError,
     AvailabilityVenueInactiveError,
+)
+from app.services.firebase_admin_app import (
+    FirebaseAdminAppProvider,
+    FirebaseAdminConfigurationError,
+    get_firebase_admin_app_provider,
+)
+from app.services.firebase_identity import (
+    FirebaseAdminIdentityVerifier,
+    FirebaseIdentity,
+    FirebaseIdentityVerificationError,
+    FirebaseIdentityVerifier,
 )
 from app.services.firebase_push_sender import FirebasePushSender
 from app.services.password_recovery import (
@@ -70,6 +83,15 @@ __all__ = [
     "PasswordRecoveryService",
     "PushDeviceService",
     "FirebasePushSender",
+    "FirebaseProfileConflictError",
+    "FirebaseProfileService",
+    "FirebaseAdminIdentityVerifier",
+    "FirebaseIdentity",
+    "FirebaseIdentityVerificationError",
+    "FirebaseIdentityVerifier",
+    "FirebaseAdminAppProvider",
+    "FirebaseAdminConfigurationError",
+    "get_firebase_admin_app_provider",
     "ReservationNotificationService",
     "ReservationReminderService",
     "RecoveryCodeNotifier",

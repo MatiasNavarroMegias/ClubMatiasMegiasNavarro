@@ -9,6 +9,7 @@ import '../../data/models/authenticated_user.dart';
 import '../../data/models/profile_update_data.dart';
 import '../../data/models/registration_data.dart';
 import '../../data/services/auth_api_client.dart';
+import '../../data/services/firebase_authentication_client.dart';
 import '../../data/services/session_storage.dart';
 
 /// Representa el estado general de autenticacion de la aplicacion.
@@ -26,9 +27,9 @@ enum AuthStatus {
   authenticated,
 }
 
-/// Coordina el cliente HTTP, el almacenamiento seguro y la interfaz.
+/// Coordina el cliente HTTP, Firebase Authentication y la interfaz.
 ///
-/// AuthController centraliza el token, el usuario actual y los errores.
+/// AuthController conserva el token en memoria, el usuario actual y errores.
 /// Las pantallas escuchan sus cambios mediante ChangeNotifier.
 class AuthController extends ChangeNotifier {
   static const _defaultInitializationTimeout = Duration(seconds: 10);
@@ -40,12 +41,15 @@ class AuthController extends ChangeNotifier {
   factory AuthController({
     required AuthApiClient apiClient,
     required SessionStorage sessionStorage,
+    FirebaseAuthenticationClient? firebaseAuthenticationClient,
     PushDeviceApiClient? pushDeviceApiClient,
     PushInstallationStore? pushInstallationStore,
   }) {
     return AuthController._(
       apiClient,
       sessionStorage,
+      firebaseAuthenticationClient ?? FirebaseAuthClient(),
+      firebaseAuthenticationClient != null,
       pushDeviceApiClient,
       pushInstallationStore,
     );
@@ -54,6 +58,8 @@ class AuthController extends ChangeNotifier {
   AuthController._(
     this._apiClient,
     this._sessionStorage,
+    this._firebaseAuthenticationClient,
+    this._usesFirebaseAuthentication,
     this._pushDeviceApiClient,
     this._pushInstallationStore,
   ) {
@@ -63,10 +69,15 @@ class AuthController extends ChangeNotifier {
 
   final AuthApiClient _apiClient;
   final SessionStorage _sessionStorage;
+  final FirebaseAuthenticationClient _firebaseAuthenticationClient;
+  final bool _usesFirebaseAuthentication;
   final PushDeviceApiClient? _pushDeviceApiClient;
   final PushInstallationStore? _pushInstallationStore;
 
   StreamSubscription<String>? _pushInstallationSubscription;
+  late final StreamSubscription<FirebaseAuthenticatedUser?>
+  _firebaseAuthSubscription = _firebaseAuthenticationClient.idTokenChanges
+      .listen(_handleFirebaseUserChange);
 
   AuthStatus _status = AuthStatus.initializing;
   AuthenticatedUser? _currentUser;
@@ -93,7 +104,7 @@ class AuthController extends ChangeNotifier {
   bool get isLoading =>
       _status == AuthStatus.initializing || _status == AuthStatus.loading;
 
-  /// Comprueba si existe una sesion almacenada al iniciar la app.
+  /// Comprueba si Firebase puede restaurar una sesion al iniciar la app.
   Future<void> initialize({
     Duration timeout = _defaultInitializationTimeout,
   }) async {
@@ -102,28 +113,25 @@ class AuthController extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    String? storedToken;
-    try {
-      storedToken = await _sessionStorage.readToken().timeout(timeout);
-    } on Object catch (error, stackTrace) {
+    if (!_usesFirebaseAuthentication) {
+      await _initializeLegacySession(timeout);
+      return;
+    }
+
+    final firebaseUser = _firebaseAuthenticationClient.currentUser;
+    if (firebaseUser == null) {
       developer.log(
-        'No se pudo leer la sesion almacenada.',
+        'No hay una sesion Firebase almacenada.',
         name: 'AuthController',
-        error: error,
-        stackTrace: stackTrace,
       );
-      _errorMessage = 'No se pudo restaurar la sesion. Podes iniciar sesion.';
-      _setUnauthenticated();
-      return;
-    }
-
-    if (storedToken == null || storedToken.isEmpty) {
-      developer.log('No hay una sesion almacenada.', name: 'AuthController');
       _setUnauthenticated();
       return;
     }
 
     try {
+      final storedToken = await _firebaseAuthenticationClient
+          .getIdToken()
+          .timeout(timeout);
       final user = await _apiClient
           .getCurrentUser(accessToken: storedToken)
           .timeout(timeout);
@@ -138,25 +146,24 @@ class AuthController extends ChangeNotifier {
         'AuthController.initialize finalizo con sesion valida.',
         name: 'AuthController',
       );
-    } on AuthApiException catch (error, stackTrace) {
-      // Si el token almacenado vencio, fue alterado o ya no identifica
-      // una cuenta valida, se elimina para evitar reutilizarlo.
+    } on FirebaseAuthenticationException catch (error, stackTrace) {
       developer.log(
-        'La sesion almacenada no es valida.',
+        'La sesion Firebase no es valida.',
         name: 'AuthController',
         error: error,
         stackTrace: stackTrace,
       );
-      try {
-        await _sessionStorage.deleteToken().timeout(timeout);
-      } on Object catch (deleteError, deleteStackTrace) {
-        developer.log(
-          'No se pudo eliminar la sesion invalida.',
-          name: 'AuthController',
-          error: deleteError,
-          stackTrace: deleteStackTrace,
-        );
-      }
+      await _firebaseAuthenticationClient.signOut();
+      _errorMessage = error.message;
+      _setUnauthenticated();
+    } on AuthApiException catch (error, stackTrace) {
+      developer.log(
+        'No se pudo cargar el perfil Firebase.',
+        name: 'AuthController',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _errorMessage = error.message;
       _setUnauthenticated();
     } on Object catch (error, stackTrace) {
       developer.log(
@@ -170,7 +177,7 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  /// Inicia sesion y almacena el JWT de forma segura.
+  /// Inicia sesion y conserva el token solo en memoria.
   ///
   /// Devuelve true cuando el login y la consulta del perfil fueron
   /// exitosos. Devuelve false y conserva el mensaje visible cuando
@@ -178,16 +185,19 @@ class AuthController extends ChangeNotifier {
   Future<bool> login({required String email, required String password}) async {
     _beginOperation();
 
+    if (!_usesFirebaseAuthentication) {
+      return _loginLegacy(email: email, password: password);
+    }
+
     try {
-      final session = await _apiClient.login(email: email, password: password);
-
-      await _sessionStorage.saveToken(session.accessToken);
-
-      final user = await _apiClient.getCurrentUser(
-        accessToken: session.accessToken,
+      await _firebaseAuthenticationClient.signIn(
+        email: email,
+        password: password,
       );
+      final token = await _firebaseAuthenticationClient.getIdToken();
+      final user = await _apiClient.getCurrentUser(accessToken: token);
 
-      _accessToken = session.accessToken;
+      _accessToken = token;
       _currentUser = user;
       _status = AuthStatus.authenticated;
       _errorMessage = null;
@@ -196,9 +206,17 @@ class AuthController extends ChangeNotifier {
       await _registerCurrentPushDevice();
 
       return true;
+    } on FirebaseAuthenticationException catch (error) {
+      _accessToken = null;
+      _currentUser = null;
+      _status = AuthStatus.unauthenticated;
+      _errorMessage = error.message;
+      notifyListeners();
+      return false;
     } on AuthApiException catch (error) {
       // Si el login o la consulta del perfil falla, se elimina cualquier
       // token que pudiera haberse almacenado durante el proceso.
+      await _firebaseAuthenticationClient.signOut();
       await _sessionStorage.deleteToken();
 
       _accessToken = null;
@@ -218,21 +236,34 @@ class AuthController extends ChangeNotifier {
   Future<bool> register(RegistrationData registrationData) async {
     _beginOperation();
 
+    if (!_usesFirebaseAuthentication) {
+      return _registerLegacy(registrationData);
+    }
+
     try {
-      await _apiClient.register(registrationData);
-
-      final session = await _apiClient.login(
-        email: registrationData.email,
-        password: registrationData.password,
+      try {
+        await _firebaseAuthenticationClient.createUser(
+          email: registrationData.email,
+          password: registrationData.password,
+        );
+      } on FirebaseAuthenticationException catch (error) {
+        if (error.code != 'email-already-in-use') {
+          rethrow;
+        }
+        // Permite reintentar el perfil local despues de una cuenta Firebase
+        // creada correctamente pero interrumpida antes de completar la API.
+        await _firebaseAuthenticationClient.signIn(
+          email: registrationData.email,
+          password: registrationData.password,
+        );
+      }
+      final token = await _firebaseAuthenticationClient.getIdToken();
+      final user = await _apiClient.completeFirebaseProfile(
+        accessToken: token,
+        registrationData: registrationData,
       );
 
-      await _sessionStorage.saveToken(session.accessToken);
-
-      final user = await _apiClient.getCurrentUser(
-        accessToken: session.accessToken,
-      );
-
-      _accessToken = session.accessToken;
+      _accessToken = token;
       _currentUser = user;
       _status = AuthStatus.authenticated;
       _errorMessage = null;
@@ -241,6 +272,13 @@ class AuthController extends ChangeNotifier {
       await _registerCurrentPushDevice();
 
       return true;
+    } on FirebaseAuthenticationException catch (error) {
+      _errorMessage = error.message;
+      _accessToken = null;
+      _currentUser = null;
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return false;
     } on AuthApiException catch (error) {
       await _sessionStorage.deleteToken();
 
@@ -259,16 +297,14 @@ class AuthController extends ChangeNotifier {
   /// Devuelve false si no existe una sesion o si el backend rechaza
   /// la actualizacion.
   Future<bool> updateProfile(ProfileUpdateData updateData) async {
-    final token = _accessToken;
-
-    if (token == null) {
-      _setUnauthenticated();
-      return false;
-    }
-
     _beginOperation();
 
+    if (!_usesFirebaseAuthentication) {
+      return _updateProfileLegacy(updateData);
+    }
+
     try {
+      final token = await _firebaseAuthenticationClient.getIdToken();
       final updatedUser = await _apiClient.updateProfile(
         accessToken: token,
         updateData: updateData,
@@ -280,6 +316,11 @@ class AuthController extends ChangeNotifier {
       notifyListeners();
 
       return true;
+    } on FirebaseAuthenticationException catch (error) {
+      _errorMessage = error.message;
+      _status = AuthStatus.authenticated;
+      notifyListeners();
+      return false;
     } on AuthApiException catch (error) {
       if (error.isUnauthorized) {
         // Un token rechazado deja de ser utilizable y debe eliminarse.
@@ -302,14 +343,14 @@ class AuthController extends ChangeNotifier {
   /// Se utilizara para actualizar los datos visibles cuando la
   /// aplicacion vuelva al primer plano o despues de otra operacion.
   Future<bool> refreshProfile() async {
-    final token = _accessToken;
-
-    if (token == null) {
-      _setUnauthenticated();
-      return false;
+    if (!_usesFirebaseAuthentication) {
+      return _refreshProfileLegacy();
     }
 
     try {
+      final token = await _firebaseAuthenticationClient.getIdToken(
+        forceRefresh: true,
+      );
       final user = await _apiClient.getCurrentUser(accessToken: token);
 
       _currentUser = user;
@@ -318,6 +359,10 @@ class AuthController extends ChangeNotifier {
       notifyListeners();
 
       return true;
+    } on FirebaseAuthenticationException catch (error) {
+      _errorMessage = error.message;
+      _setUnauthenticated();
+      return false;
     } on AuthApiException catch (error) {
       if (error.isUnauthorized) {
         await logout();
@@ -334,6 +379,22 @@ class AuthController extends ChangeNotifier {
 
   /// Elimina la sesion local y vuelve al flujo no autenticado.
   Future<void> logout() async {
+    if (!_usesFirebaseAuthentication) {
+      await _sessionStorage.deleteToken();
+      _setUnauthenticated();
+      return;
+    }
+
+    try {
+      await _firebaseAuthenticationClient.signOut();
+    } on Object catch (error, stackTrace) {
+      developer.log(
+        'No se pudo cerrar la sesion Firebase.',
+        name: 'AuthController',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
     await _sessionStorage.deleteToken();
     _setUnauthenticated();
   }
@@ -357,16 +418,19 @@ class AuthController extends ChangeNotifier {
   /// Los errores push se registran para diagnostico, pero no modifican
   /// el estado de autenticacion ni muestran un error en la interfaz.
   Future<void> _registerPushDevice(String installationId) async {
-    final accessToken = _accessToken;
     final pushDeviceApiClient = _pushDeviceApiClient;
 
-    if (_status != AuthStatus.authenticated ||
-        accessToken == null ||
-        pushDeviceApiClient == null) {
+    if (_status != AuthStatus.authenticated || pushDeviceApiClient == null) {
       return;
     }
 
     try {
+      final accessToken = _usesFirebaseAuthentication
+          ? await _firebaseAuthenticationClient.getIdToken()
+          : _accessToken;
+      if (accessToken == null) {
+        return;
+      }
       await pushDeviceApiClient.register(
         accessToken: accessToken,
         installationId: installationId,
@@ -379,12 +443,25 @@ class AuthController extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
+    } on FirebaseAuthenticationException catch (error, stackTrace) {
+      developer.log(
+        'No se pudo obtener el token Firebase para el dispositivo push.',
+        name: 'AuthController',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
   /// Procesa un identificador entregado despues de autenticar al usuario.
   void _handleInstallationId(String installationId) {
     unawaited(_registerPushDevice(installationId));
+  }
+
+  void _handleFirebaseUserChange(FirebaseAuthenticatedUser? user) {
+    if (user == null && _status == AuthStatus.authenticated) {
+      _setUnauthenticated();
+    }
   }
 
   /// Limpia un error despues de mostrarlo o editar el formulario.
@@ -412,11 +489,145 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _initializeLegacySession(Duration timeout) async {
+    try {
+      final storedToken = await _sessionStorage.readToken().timeout(timeout);
+      if (storedToken == null || storedToken.isEmpty) {
+        _setUnauthenticated();
+        return;
+      }
+
+      final user = await _apiClient
+          .getCurrentUser(accessToken: storedToken)
+          .timeout(timeout);
+      _accessToken = storedToken;
+      _currentUser = user;
+      _status = AuthStatus.authenticated;
+      notifyListeners();
+      await _registerCurrentPushDevice();
+    } on Object catch (error, stackTrace) {
+      developer.log(
+        'No se pudo restaurar la sesion legacy.',
+        name: 'AuthController',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      await _sessionStorage.deleteToken();
+      _errorMessage = 'No se pudo restaurar la sesion. Podes iniciar sesion.';
+      _setUnauthenticated();
+    }
+  }
+
+  Future<bool> _loginLegacy({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final session = await _apiClient.login(email: email, password: password);
+      await _sessionStorage.saveToken(session.accessToken);
+      final user = await _apiClient.getCurrentUser(
+        accessToken: session.accessToken,
+      );
+      _accessToken = session.accessToken;
+      _currentUser = user;
+      _status = AuthStatus.authenticated;
+      _errorMessage = null;
+      notifyListeners();
+      await _registerCurrentPushDevice();
+      return true;
+    } on AuthApiException catch (error) {
+      await _sessionStorage.deleteToken();
+      _errorMessage = error.message;
+      _setUnauthenticated();
+      return false;
+    }
+  }
+
+  Future<bool> _registerLegacy(RegistrationData registrationData) async {
+    try {
+      await _apiClient.register(registrationData);
+      final session = await _apiClient.login(
+        email: registrationData.email,
+        password: registrationData.password,
+      );
+      await _sessionStorage.saveToken(session.accessToken);
+      final user = await _apiClient.getCurrentUser(
+        accessToken: session.accessToken,
+      );
+      _accessToken = session.accessToken;
+      _currentUser = user;
+      _status = AuthStatus.authenticated;
+      _errorMessage = null;
+      notifyListeners();
+      await _registerCurrentPushDevice();
+      return true;
+    } on AuthApiException catch (error) {
+      await _sessionStorage.deleteToken();
+      _errorMessage = error.message;
+      _setUnauthenticated();
+      return false;
+    }
+  }
+
+  Future<bool> _updateProfileLegacy(ProfileUpdateData updateData) async {
+    final token = _accessToken;
+    if (token == null) {
+      _setUnauthenticated();
+      return false;
+    }
+
+    try {
+      _currentUser = await _apiClient.updateProfile(
+        accessToken: token,
+        updateData: updateData,
+      );
+      _status = AuthStatus.authenticated;
+      _errorMessage = null;
+      notifyListeners();
+      return true;
+    } on AuthApiException catch (error) {
+      if (error.isUnauthorized) {
+        await logout();
+        return false;
+      }
+      _status = AuthStatus.authenticated;
+      _errorMessage = error.message;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> _refreshProfileLegacy() async {
+    final token = _accessToken;
+    if (token == null) {
+      _setUnauthenticated();
+      return false;
+    }
+
+    try {
+      _currentUser = await _apiClient.getCurrentUser(accessToken: token);
+      _status = AuthStatus.authenticated;
+      _errorMessage = null;
+      notifyListeners();
+      return true;
+    } on AuthApiException catch (error) {
+      if (error.isUnauthorized) {
+        await logout();
+        return false;
+      }
+      _status = AuthStatus.authenticated;
+      _errorMessage = error.message;
+      notifyListeners();
+      return false;
+    }
+  }
+
   @override
   void dispose() {
     // La cancelacion evita continuar escuchando identificadores cuando
     // el controlador ya no forma parte de la aplicacion.
     unawaited(_pushInstallationSubscription?.cancel());
+    unawaited(_firebaseAuthSubscription.cancel());
 
     // AuthController es propietario de los clientes recibidos y libera
     // sus recursos cuando deja de utilizarse.

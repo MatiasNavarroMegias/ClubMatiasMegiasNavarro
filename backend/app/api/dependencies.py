@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 from zoneinfo import ZoneInfo
 
@@ -28,6 +29,11 @@ from app.services import (
     AvailabilityService,
     BrevoRecoveryCodeNotifier,
     DevelopmentRecoveryCodeNotifier,
+    FirebaseAdminConfigurationError,
+    FirebaseAdminIdentityVerifier,
+    FirebaseIdentity,
+    FirebaseIdentityVerificationError,
+    FirebaseProfileService,
     FirebasePushSender,
     PasswordRecoveryService,
     PushDeviceService,
@@ -37,7 +43,10 @@ from app.services import (
     SMTPRecoveryCodeNotifier,
     SportsSpaceService,
     VenueService,
+    get_firebase_admin_app_provider,
 )
+
+logger = logging.getLogger(__name__)
 
 # Tipo reutilizable que representa una sesion administrada por FastAPI.
 DatabaseSession = Annotated[Session, Depends(get_db_session)]
@@ -47,6 +56,7 @@ DatabaseSession = Annotated[Session, Depends(get_db_session)]
 # Swagger muestra un unico campo para ingresar el JWT obtenido mediante
 # POST /auth/login, que utiliza un cuerpo JSON.
 bearer_scheme = HTTPBearer()
+firebase_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_access_token_service() -> AccessTokenService:
@@ -260,6 +270,73 @@ def get_current_user(
     return user
 
 
+def get_firebase_identity(
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(firebase_bearer_scheme),
+    ],
+) -> FirebaseIdentity:
+    """Valida exclusivamente un Firebase ID Token recibido como Bearer."""
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No se pudo validar la identidad.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        settings = get_settings()
+        provider = get_firebase_admin_app_provider(
+            settings.firebase_credentials_path,
+            settings.firebase_project_id,
+        )
+        return FirebaseAdminIdentityVerifier(app_provider=provider).verify(credentials.credentials)
+    except FirebaseAdminConfigurationError as error:
+        logger.error("Firebase Admin no esta configurado para identidad.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="El servicio de autenticacion no esta disponible.",
+        ) from error
+    except FirebaseIdentityVerificationError as error:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No se pudo validar la identidad.",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from error
+
+
+def get_firebase_profile_service(
+    database_session: DatabaseSession,
+) -> FirebaseProfileService:
+    return FirebaseProfileService(UserRepository(database_session))
+
+
+def get_current_firebase_user(
+    database_session: DatabaseSession,
+    identity: Annotated[
+        FirebaseIdentity,
+        Depends(get_firebase_identity),
+    ],
+) -> User:
+    """Obtiene el perfil local asociado a una identidad Firebase validada."""
+    user = UserRepository(database_session).get_by_firebase_uid(identity.uid)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No se pudo validar la identidad.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="La cuenta de usuario se encuentra inactiva.",
+        )
+
+    return user
+
+
 def get_venue_service(
     database_session: DatabaseSession,
 ) -> VenueService:
@@ -378,6 +455,10 @@ def get_reservation_notification_service(
         sender=FirebasePushSender(
             credentials_path=settings.firebase_credentials_path,
             project_id=settings.firebase_project_id,
+            app_provider=get_firebase_admin_app_provider(
+                settings.firebase_credentials_path,
+                settings.firebase_project_id,
+            ),
         ),
         timezone=ZoneInfo(settings.app_timezone),
     )
@@ -405,6 +486,21 @@ AuthServiceDependency = Annotated[
 CurrentUser = Annotated[
     User,
     Depends(get_current_user),
+]
+
+FirebaseIdentityDependency = Annotated[
+    FirebaseIdentity,
+    Depends(get_firebase_identity),
+]
+
+FirebaseProfileServiceDependency = Annotated[
+    FirebaseProfileService,
+    Depends(get_firebase_profile_service),
+]
+
+FirebaseCurrentUser = Annotated[
+    User,
+    Depends(get_current_firebase_user),
 ]
 
 # Tipo reutilizable para inyectar VenueService en los endpoints.

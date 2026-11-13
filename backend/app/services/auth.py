@@ -1,7 +1,8 @@
 from app.core.security import AccessTokenService, PasswordHasher
 from app.models import User
 from app.repositories import UserRepository
-from app.schemas import UserLogin, UserRegister, UserUpdate
+from app.schemas import FirebaseProfileCreate, UserLogin, UserRegister, UserUpdate
+from app.services.firebase_identity import FirebaseIdentity
 
 
 class EmailAlreadyRegisteredError(Exception):
@@ -29,6 +30,46 @@ class InactiveUserError(Exception):
     Una cuenta inactiva conserva sus datos y reservas, pero no puede
     iniciar una nueva sesion.
     """
+
+
+class FirebaseProfileConflictError(Exception):
+    """Indica que una identidad Firebase no puede vincularse automaticamente."""
+
+
+class FirebaseProfileService:
+    """Crea perfiles locales para identidades Firebase validadas."""
+
+    def __init__(self, repository: UserRepository) -> None:
+        self.repository = repository
+
+    def complete_profile(
+        self,
+        *,
+        identity: FirebaseIdentity,
+        profile_data: FirebaseProfileCreate,
+    ) -> User:
+        existing_by_uid = self.repository.get_by_firebase_uid(identity.uid)
+        if existing_by_uid is not None:
+            if not existing_by_uid.is_active:
+                raise InactiveUserError("La cuenta de usuario se encuentra inactiva.")
+            return existing_by_uid
+
+        existing_by_email = self.repository.get_by_email(identity.email)
+        if existing_by_email is not None:
+            raise FirebaseProfileConflictError(
+                "El correo ya pertenece a un usuario legacy y requiere migracion controlada."
+            )
+
+        user = User(
+            first_name=profile_data.first_name,
+            last_name=profile_data.last_name,
+            birth_date=profile_data.birth_date,
+            email=identity.email,
+            password_hash=None,
+            firebase_uid=identity.uid,
+            is_active=True,
+        )
+        return self.repository.add(user)
 
 
 class AuthService:

@@ -693,26 +693,35 @@ JWT recibido
 
 Los errores de credenciales, cuenta inactiva, validacion o conexion se muestran mediante mensajes visibles.
 
-## Almacenamiento de la sesion
+## Firebase Authentication y recuperacion
 
-El token se guarda mediante:
+Firebase Authentication es la fuente de verdad para el correo, la contrasena,
+el registro, el inicio de sesion y la persistencia de la sesion. `AuthController`
+obtiene un Firebase ID Token vigente bajo demanda y lo envia como `Bearer` a
+FastAPI; el token no se guarda indefinidamente en `flutter_secure_storage`.
 
-```text
-flutter_secure_storage
-```
-
-El token no se almacena dentro del codigo, preferencias comunes ni archivos de texto.
-
-Al iniciar la aplicacion, `AuthController` recupera el token y consulta:
+Al iniciar la aplicacion, Firebase restaura la sesion y Flutter consulta:
 
 ```http
 GET /users/me
 ```
 
-Si el token vencio o no es valido:
+La recuperacion nueva solicita un enlace mediante
+`FirebaseAuth.sendPasswordResetEmail`. La pantalla no pide codigo ni nueva
+contrasena: Firebase administra el cambio desde el enlace recibido y la
+aplicacion muestra siempre:
 
 ```text
-token eliminado
+Si la cuenta existe, recibiras un correo para restablecer la contrasena.
+```
+
+El flujo Brevo de recuperacion permanece en el backend unicamente para
+usuarios legacy y no es llamado por la aplicacion Firebase.
+
+Si el ID Token vencio o no es valido:
+
+```text
+sesion Firebase cerrada
 → regreso al Login
 ```
 
